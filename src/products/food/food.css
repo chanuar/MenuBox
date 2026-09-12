@@ -352,6 +352,13 @@ body.food-page :focus-visible {
   border-color: #cbbdaf;
   box-shadow: 0 12px 30px rgba(67, 51, 35, 0.08);
 }
+.food-menu-card.food-menu-card--text {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+.food-menu-card--text .food-menu-card__body {
+  padding: 20px;
+}
 .food-menu-card--selected {
   border-color: var(--food-herb);
   box-shadow: 0 0 0 2px rgba(65, 97, 75, 0.08);

@@ -104,6 +104,27 @@ describe('successful order recovery', () => {
     apiMocks.updateOrder.mockResolvedValue(confirmedOrder);
   });
 
+  it.each([
+    { category: 'BEBIDAS', imageUrl: 'https://example.invalid/drink.jpg' },
+    { category: 'SALSAS EXTRAS', imageUrl: null },
+  ])(
+    'keeps $category compact while retaining quantity controls',
+    async ({ category, imageUrl }) => {
+      const user = userEvent.setup();
+      apiMocks.getActiveMenu.mockResolvedValue({
+        ...menu,
+        menuItems: menu.menuItems.map((item) => ({ ...item, category, imageUrl })),
+      });
+      renderOrder();
+      const card = await screen.findByRole('article', { name: 'Tortilla' });
+      expect(card).toHaveClass('food-menu-card--text');
+      expect(card.querySelector('img')).toBeNull();
+      expect(card.querySelector('.food-item-image--placeholder')).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Añadir una unidad de Tortilla' }));
+      expect(screen.getByRole('button', { name: 'Quitar una unidad de Tortilla' })).toBeEnabled();
+    },
+  );
+
   it('updates the committed order instead of creating a duplicate when confirmation fails', async () => {
     const user = userEvent.setup();
     apiMocks.getOrder.mockRejectedValueOnce(new Error('confirmation unavailable'));
@@ -116,7 +137,8 @@ describe('successful order recovery', () => {
     );
     expect(screen.getByRole('link', { name: 'Restaurantes' })).toHaveAttribute('href', '/options');
     fireEvent.error(document.querySelector('.food-menu-card__image')!);
-    expect(document.querySelector('.food-item-image--placeholder')).toHaveTextContent('P');
+    expect(screen.getByRole('article', { name: 'Tortilla' }).querySelector('img')).toBeNull();
+    expect(document.querySelector('.food-item-image--placeholder')).toBeNull();
     const details = screen.getByRole('button', { name: 'Ver detalles' });
     await user.click(details);
     expect(screen.getByRole('dialog', { name: 'Tortilla' })).toHaveTextContent(

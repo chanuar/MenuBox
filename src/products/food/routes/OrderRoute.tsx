@@ -70,7 +70,15 @@ function EmptyWeek({ configured = true }: { configured?: boolean }) {
   );
 }
 
-function MenuItemImage({ item, className }: { item: MenuItem; className: string }) {
+function MenuItemImage({
+  item,
+  className,
+  onError,
+}: {
+  item: MenuItem;
+  className: string;
+  onError?: () => void;
+}) {
   const [failed, setFailed] = useState(false);
   if (!item.imageUrl || failed) {
     return (
@@ -85,7 +93,10 @@ function MenuItemImage({ item, className }: { item: MenuItem; className: string 
       src={item.imageUrl}
       alt=""
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+        onError?.();
+      }}
     />
   );
 }
@@ -104,14 +115,26 @@ function MenuItemCard({
   onOpen: (item: MenuItem, event?: MouseEvent<HTMLElement>) => void;
 }) {
   const quantity = entry?.quantity ?? 0;
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(item.imageUrl) && !isBeverage(item.category) && !imageFailed;
   return (
     <article
-      className={`food-menu-card${quantity ? ' food-menu-card--selected' : ''}`}
+      className={`food-menu-card${showImage ? '' : ' food-menu-card--text'}${quantity ? ' food-menu-card--selected' : ''}`}
       aria-labelledby={`food-menu-item-${item.id}`}
     >
-      <div className="food-menu-card__image-button" onClick={() => onOpen(item)} aria-hidden="true">
-        <MenuItemImage item={item} className="food-menu-card__image" />
-      </div>
+      {showImage && (
+        <div
+          className="food-menu-card__image-button"
+          onClick={() => onOpen(item)}
+          aria-hidden="true"
+        >
+          <MenuItemImage
+            item={item}
+            className="food-menu-card__image"
+            onError={() => setImageFailed(true)}
+          />
+        </div>
+      )}
       <div className="food-menu-card__body">
         <p className="food-menu-card__category">{item.category}</p>
         <div className="food-menu-card__heading">
