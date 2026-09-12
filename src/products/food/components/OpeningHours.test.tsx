@@ -31,7 +31,7 @@ describe('restaurant opening hours', () => {
   it('shows a full, labelled weekly schedule', async () => {
     const user = userEvent.setup();
     render(<OpeningHours openingHours={openingHours} />);
-    await user.click(screen.getByText('Horario'));
+    await user.click(screen.getByText('Horario del restaurante'));
     expect(screen.getByText('Lunes')).toBeVisible();
     expect(screen.getAllByText('Cerrado')).toHaveLength(5);
   });

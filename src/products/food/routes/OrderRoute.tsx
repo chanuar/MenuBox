@@ -570,8 +570,8 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
           <div className="food-hero__content">
             <p className="food-kicker">Pedido abierto</p>
             <h1 id="food-restaurant-title">{active.restaurant.name}</h1>
-            {active.restaurant.description && <p>{active.restaurant.description}</p>}
-            <span>Abierto desde {formatSpanishDate(active.cycle.openedAt)}</span>
+            <p>El restaurante de esta semana. Elige tus platos y envía tu pedido al equipo.</p>
+            <span>Pedido abierto desde {formatSpanishDate(active.cycle.openedAt)}</span>
             <OpeningHours openingHours={active.restaurant.openingHours} compact />
             {active.restaurant.sourceUrl && (
               <a

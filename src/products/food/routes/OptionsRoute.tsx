@@ -5,6 +5,12 @@ import FoodHeader from '../components/FoodHeader';
 import { OpeningHours } from '../components/OpeningHours';
 import type { Restaurant } from '../model/types';
 
+function restaurantDescription(description: string) {
+  return !description.trim() || /^usa tu cuenta de uber\b/i.test(description.trim())
+    ? 'Descubre sus platos y consulta la carta completa en Uber Eats.'
+    : description;
+}
+
 export const loader = () => getRestaurantOptions();
 
 function RestaurantImage({ restaurant }: { restaurant: Restaurant }) {
@@ -43,8 +49,8 @@ export function Component() {
           <p className="food-kicker">Todas las opciones</p>
           <h1>¿Dónde pedimos esta semana?</h1>
           <p>
-            Explora los restaurantes que ya forman parte de MenuBox y consulta su carta original en
-            Uber Eats.
+            Conoce los restaurantes del equipo. El pedido de la semana se prepara en MenuBox; aquí
+            puedes consultar los horarios y las cartas originales en Uber Eats.
           </p>
         </header>
 
@@ -73,8 +79,7 @@ export function Component() {
                     </p>
                     <h3>{restaurant.name}</h3>
                     <p className="food-option-card__description">
-                      {restaurant.description ||
-                        'Consulta su propuesta y todos los platos disponibles en Uber Eats.'}
+                      {restaurantDescription(restaurant.description)}
                     </p>
                     <OpeningHours openingHours={restaurant.openingHours} />
                   </div>

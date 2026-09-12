@@ -74,7 +74,7 @@ export function OpeningHours({
   if (!normalized.length) {
     return (
       <div className={`food-hours-empty${compact ? ' food-hours-empty--compact' : ''}`}>
-        Horario pendiente de confirmar
+        Horario del restaurante pendiente de confirmar
       </div>
     );
   }
@@ -82,7 +82,7 @@ export function OpeningHours({
   return (
     <details className={`food-hours${compact ? ' food-hours--compact' : ''}`}>
       <summary>
-        <span>Horario</span>
+        <span>Horario del restaurante</span>
         <strong>Hoy · {formatOpeningPeriods(today.periods)}</strong>
       </summary>
       <dl>

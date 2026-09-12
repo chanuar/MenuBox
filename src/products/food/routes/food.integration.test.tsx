@@ -30,6 +30,7 @@ vi.mock('../api/foodApi', async (importOriginal) => {
 });
 
 import { Component as OrderRoute, loader as orderLoader } from './OrderRoute';
+import { getRestaurantOptions } from '../api/foodApi';
 import { Component as AdminRoute, loader as adminLoader } from './AdminRoute';
 import { Component as OptionsRoute, loader as optionsLoader } from './OptionsRoute';
 
@@ -64,11 +65,28 @@ describe('food route integration without configured Supabase', () => {
     expect(await screen.findByRole('heading', { name: 'PSM Burger' })).toBeVisible();
     expect(screen.getByText('Hamburguesas artesanas en Telde.')).toBeVisible();
     expect(screen.getByText('45 platos disponibles')).toBeVisible();
-    expect(screen.getByText('Horario')).toBeVisible();
+    expect(screen.getByText('Horario del restaurante')).toBeVisible();
     expect(screen.getByRole('link', { name: /Ver en Uber Eats/ })).toHaveAttribute(
       'href',
       'https://www.ubereats.com/es/store/psm-burger-telde/example',
     );
+  });
+
+  it('replaces imported Uber account instructions with MenuBox copy', async () => {
+    const restaurants = await getRestaurantOptions();
+    const restaurant = restaurants[0];
+    if (!restaurant) throw new Error('Missing restaurant fixture');
+    vi.mocked(getRestaurantOptions).mockResolvedValueOnce([
+      {
+        ...restaurant,
+        description: 'Usa tu cuenta de Uber para pedir entregas de PSM Burger.',
+      },
+    ]);
+    renderRoute(OptionsRoute, optionsLoader, '/options');
+    expect(
+      await screen.findByText('Descubre sus platos y consulta la carta completa en Uber Eats.'),
+    ).toBeVisible();
+    expect(screen.queryByText(/Usa tu cuenta de Uber/)).not.toBeInTheDocument();
   });
 
   it('loads restaurant options and an unauthenticated admin session at route boundaries', async () => {
