@@ -46,7 +46,7 @@ alongside the web application.
 
 ### Requirements
 
-- Node.js 20.19 or newer. Node 22 is the repository default.
+- Node.js 22.22.1 or newer within Node 22, or Node 24+. Node 22 is the repository default.
 - npm
 - Docker Desktop for the disposable local Supabase stack and database tests
 
