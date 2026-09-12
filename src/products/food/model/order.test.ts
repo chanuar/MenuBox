@@ -4,12 +4,39 @@ import {
   cartTotal,
   formatEuros,
   normalizeSearch,
+  isBeverage,
+  menuCategoryPriority,
   orderToCart,
   unavailableOrderItems,
   validateOrder,
 } from './order';
 
 describe('food order utilities', () => {
+  it('puts featured dishes and mains before sides, desserts, drinks and extras', () => {
+    const categories = [
+      'BEBIDAS ALCOHÓLICAS',
+      'SALSAS EXTRAS',
+      'POSTRES',
+      'PAPAS',
+      'BURGERS',
+      'TOP VENTAS',
+      'COMBOS',
+    ];
+    expect(
+      [...categories].sort((a, b) => menuCategoryPriority(a) - menuCategoryPriority(b)),
+    ).toEqual([
+      'TOP VENTAS',
+      'BURGERS',
+      'COMBOS',
+      'PAPAS',
+      'POSTRES',
+      'BEBIDAS ALCOHÓLICAS',
+      'SALSAS EXTRAS',
+    ]);
+    expect(isBeverage('Bebidas alcohólicas')).toBe(true);
+    expect(isBeverage('BURGERS')).toBe(false);
+    expect(menuCategoryPriority('Especialidades de la casa')).toBe(1);
+  });
   it('formats integer cents as Spanish euros', () => {
     expect(formatEuros(1295)).toMatch(/12,95\s?€/);
   });

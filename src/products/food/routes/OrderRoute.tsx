@@ -19,6 +19,8 @@ import {
   cartTotal,
   formatEuros,
   formatSpanishDate,
+  isBeverage,
+  menuCategoryPriority,
   normalizeSearch,
   orderToCart,
   unavailableOrderItems,
@@ -79,7 +81,7 @@ function MenuItemImage({ item, className }: { item: MenuItem; className: string 
   }
   return (
     <img
-      className={className}
+      className={`${className}${isBeverage(item.category) ? ' food-item-image--beverage' : ''}`}
       src={item.imageUrl}
       alt=""
       loading="lazy"
@@ -364,19 +366,27 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
     window.requestAnimationFrame(() => detailOpenerRef.current?.focus());
   }
 
+  const menuItems = useMemo(
+    () =>
+      [...(active?.menuItems ?? [])].sort(
+        (a, b) => menuCategoryPriority(a.category) - menuCategoryPriority(b.category),
+      ),
+    [active],
+  );
+
   const categories = useMemo(() => {
-    const values = new Set((active?.menuItems ?? []).map((item) => item.category));
+    const values = new Set(menuItems.map((item) => item.category));
     return ['Todos', ...values];
-  }, [active]);
+  }, [menuItems]);
 
   const visibleItems = useMemo(() => {
     const q = normalizeSearch(query.trim());
-    return (active?.menuItems ?? []).filter(
+    return menuItems.filter(
       (item) =>
         (category === 'Todos' || item.category === category) &&
         (!q || normalizeSearch(`${item.name} ${item.description} ${item.category}`).includes(q)),
     );
-  }, [active, category, query]);
+  }, [menuItems, category, query]);
 
   function setQuantity(itemId: string, nextQuantity: number) {
     setCart((current) => {

@@ -358,8 +358,11 @@ body.food-page :focus-visible {
 }
 .food-menu-card__image-button {
   display: block;
+  align-self: start;
+  aspect-ratio: 1;
   min-width: 0;
-  min-height: 196px;
+  margin: 14px 0 14px 14px;
+  border-radius: 12px;
   overflow: hidden;
   border: 0;
   background: transparent;
@@ -367,10 +370,15 @@ body.food-page :focus-visible {
   cursor: zoom-in;
 }
 .food-menu-card__image {
+  display: block;
   width: 100%;
   height: 100%;
-  min-height: 196px;
   object-fit: cover;
+}
+.food-menu-card__image.food-item-image--beverage,
+.food-item-modal__image.food-item-image--beverage {
+  object-fit: contain;
+  background: white;
 }
 .food-item-image--placeholder {
   display: grid;
@@ -1745,12 +1753,6 @@ body.food-page :focus-visible {
   }
   .food-menu-card {
     grid-template-columns: 105px minmax(0, 1fr);
-    min-height: 185px;
-  }
-  .food-menu-card__image-button {
-    min-height: 185px;
-  }
-  .food-menu-card__image {
     min-height: 185px;
   }
   .food-menu-card__body {

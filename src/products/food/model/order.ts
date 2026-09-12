@@ -22,6 +22,21 @@ export function normalizeSearch(value: unknown) {
     .toLocaleLowerCase('es');
 }
 
+export function isBeverage(category: string) {
+  return /\b(bebidas?|refrescos?|cervezas?|vinos?|zumos?|aguas?)\b/.test(normalizeSearch(category));
+}
+
+export function menuCategoryPriority(category: string) {
+  const normalized = normalizeSearch(category);
+  // ponytail: category labels drive presentation; use catalog ranks if categories need editorial ordering.
+  if (/\b(top ventas|destacados|populares|recomendados)\b/.test(normalized)) return 0;
+  if (isBeverage(category)) return 4;
+  if (/\b(salsas?|extras?)\b/.test(normalized)) return 5;
+  if (/\b(postres?|dulces?)\b/.test(normalized)) return 3;
+  if (/\b(entrantes?|papas|patatas|acompanamientos?)\b/.test(normalized)) return 2;
+  return 1;
+}
+
 export function cartTotal(cart: Cart, menuItems: Pick<MenuItem, 'id' | 'priceCents'>[]) {
   const byId = new Map(menuItems.map((item) => [item.id, item]));
   return Object.entries(cart).reduce(
