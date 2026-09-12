@@ -19,6 +19,7 @@ export default function FoodHeader({ compact = false }: { compact?: boolean }) {
         <nav className="food-header__nav" aria-label="Navegación de MenuBox">
           <NavLink to="/options">Restaurantes</NavLink>
           <NavLink to="/admin">Administración</NavLink>
+          <NavLink to="/roulette">Ruleta</NavLink>
         </nav>
       </header>
     </>

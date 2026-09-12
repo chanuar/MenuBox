@@ -3,6 +3,7 @@
 MenuBox is a standalone Vite application using React 19, React Router 7, and
 strict TypeScript. Public routes are `/` and `/options`; `/admin` and unknown
 direct requests must remain `noindex`, with unknown requests returning `404.html`.
+`/roulette` provides a visual restaurant picker and remains `noindex`.
 
 - Keep product code in `src/products/food/`; standalone startup, metadata,
   routing, and 404 code belong in `src/app/`.

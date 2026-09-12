@@ -18,6 +18,10 @@ const META = {
     title: 'Administración — MenuBox',
     description: 'Administración segura del pedido semanal del equipo.',
   },
+  roulette: {
+    title: 'Ruleta — MenuBox',
+    description: 'Gira la ruleta y elige al azar entre los restaurantes de MenuBox.',
+  },
   notFound: {
     title: 'Página no encontrada — MenuBox',
     description: 'La página que buscas no existe.',
