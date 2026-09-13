@@ -271,9 +271,8 @@ export function Component() {
               <section className="food-roulette__selection" aria-labelledby="roulette-restaurants">
                 <div className="food-roulette__selection-heading">
                   <div>
-                    <p className="food-kicker">A tu gusto</p>
                     <h2 id="roulette-restaurants">
-                      {mode === 'food' ? 'Tipos de comida' : 'Restaurantes'} en la ruleta
+                      {mode === 'food' ? 'Tipos de comida' : 'Restaurantes'}
                     </h2>
                   </div>
                   <span
@@ -285,7 +284,7 @@ export function Component() {
                   </span>
                 </div>
                 <p className="food-roulette__selection-hint">
-                  Toca una tarjeta para incluirla o quitarla del sorteo.
+                  Marca los que te apetecen. La suerte elige el resto.
                 </p>
                 {mode === 'food' && allOptions.length === 0 && (
                   <p>Vuelve a «Restaurante» y marca alguna opción para ver sus tipos de comida.</p>
@@ -313,12 +312,7 @@ export function Component() {
                           >
                             {index === -1 ? '–' : index + 1}
                           </span>
-                          <span className="food-roulette__option-copy">
-                            <span className="food-roulette__option-name">{option.name}</span>
-                            <span className="food-roulette__option-state" aria-hidden="true">
-                              {index === -1 ? 'Fuera del sorteo' : 'En la ruleta'}
-                            </span>
-                          </span>
+                          <span className="food-roulette__option-name">{option.name}</span>
                           <span className="food-roulette__check" aria-hidden="true">
                             <svg
                               width="14"
