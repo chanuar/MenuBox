@@ -113,21 +113,46 @@ export function Component() {
               <legend className="sr-only">Qué quieres decidir</legend>
               <label>
                 <input
+                  className="sr-only"
                   ref={restaurantMode}
                   type="radio"
                   name="roulette-mode"
                   checked={mode === 'restaurant'}
                   onChange={() => changeMode('restaurant')}
                 />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  aria-hidden="true"
+                >
+                  <path d="M4 10v10h16V10M3 10l2-6h14l2 6M3 10a3 3 0 0 0 4.5 2.6A3 3 0 0 0 12 12a3 3 0 0 0 4.5.6A3 3 0 0 0 21 10M9 20v-5h6v5" />
+                </svg>
                 Restaurante
               </label>
               <label>
                 <input
+                  className="sr-only"
                   type="radio"
                   name="roulette-mode"
                   checked={mode === 'food'}
                   onChange={() => changeMode('food')}
                 />
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 3v5a3 3 0 0 0 6 0V3M8 3v18M19 21V3c-4 2-4 7 0 9" />
+                </svg>
                 Tipo de comida
               </label>
             </fieldset>
@@ -146,120 +171,175 @@ export function Component() {
                 </button>
               </div>
             )}
-            <div className="food-roulette__wheel-wrap">
-              <div className="food-roulette__pointer" aria-hidden="true" />
-              <div
-                className="food-roulette__wheel"
-                aria-hidden="true"
-                style={{
-                  transform: `rotate(${rotation}deg)`,
-                  transition: pending ? undefined : 'none',
-                  background: options.length
-                    ? `conic-gradient(${options.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`
-                    : 'var(--food-line)',
-                }}
-              >
-                {options.map((option, index) => (
-                  <span
-                    className="food-roulette__number"
-                    key={option.id}
-                    style={{ transform: `rotate(${(index + 0.5) * slice}deg)` }}
+            <div className="food-roulette__layout">
+              <div className="food-roulette__stage">
+                <div className="food-roulette__wheel-wrap">
+                  <div className="food-roulette__pointer" aria-hidden="true" />
+                  <div
+                    className="food-roulette__wheel"
+                    aria-hidden="true"
+                    style={{
+                      transform: `rotate(${rotation}deg)`,
+                      transition: pending ? undefined : 'none',
+                      background: options.length
+                        ? `conic-gradient(${options.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`
+                        : 'var(--food-line)',
+                    }}
                   >
-                    <span>{index + 1}</span>
-                  </span>
-                ))}
-              </div>
-              <button
-                className="food-roulette__hub"
-                type="button"
-                aria-label="Girar ruleta desde el centro"
-                disabled={spinDisabled}
-                onClick={spin}
-              >
-                M
-              </button>
-            </div>
-            <button className="food-button" type="button" disabled={spinDisabled} onClick={spin}>
-              {pending ? 'Girando…' : winner ? 'Volver a girar' : 'Girar ruleta'}
-            </button>
-            <div
-              className="food-roulette__result"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {pending ? (
-                <p>Eligiendo {optionName}…</p>
-              ) : winner ? (
-                <>
-                  <p>
-                    ¡Hoy toca <strong>{winner.name}</strong>!
-                  </p>
-                  {winner.sourceUrl && (
-                    <a href={winner.sourceUrl} target="_blank" rel="noreferrer">
-                      Ver carta en Uber Eats{' '}
-                      <span className="sr-only">(se abre en una pestaña nueva)</span> ↗
-                    </a>
+                    {options.map((option, index) => (
+                      <span
+                        className="food-roulette__number"
+                        key={option.id}
+                        style={{ transform: `rotate(${(index + 0.5) * slice}deg)` }}
+                      >
+                        <span>{index + 1}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    className="food-roulette__hub"
+                    type="button"
+                    aria-label="Girar ruleta desde el centro"
+                    disabled={spinDisabled}
+                    onClick={spin}
+                  >
+                    <svg
+                      width="26"
+                      height="26"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 7v5h-5M20 12a8 8 0 1 0-2.3 5.7" />
+                    </svg>
+                    <span>Girar</span>
+                  </button>
+                </div>
+                <button
+                  className="food-button food-roulette__spin"
+                  type="button"
+                  disabled={spinDisabled}
+                  onClick={spin}
+                >
+                  {pending ? 'Girando…' : winner ? 'Volver a girar' : 'Girar ruleta'}
+                </button>
+                <div
+                  className="food-roulette__result"
+                  data-state={winner ? 'winner' : pending ? 'spinning' : 'idle'}
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {pending ? (
+                    <p>Eligiendo {optionName}…</p>
+                  ) : winner ? (
+                    <>
+                      <p>
+                        ¡Hoy toca <strong>{winner.name}</strong>!
+                      </p>
+                      {winner.sourceUrl && (
+                        <a href={winner.sourceUrl} target="_blank" rel="noreferrer">
+                          Ver carta en Uber Eats{' '}
+                          <span className="sr-only">(se abre en una pestaña nueva)</span> ↗
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <p>
+                      {options.length === 0
+                        ? `Selecciona al menos un ${optionName} para girar.`
+                        : options.length === 1
+                          ? `Solo hay un ${optionName} disponible.`
+                          : `${options.length} ${optionsName}. Una decisión menos.`}
+                    </p>
                   )}
-                </>
-              ) : (
-                <p>
-                  {options.length === 0
-                    ? `Selecciona al menos un ${optionName} para girar.`
-                    : options.length === 1
-                      ? `Solo hay un ${optionName} disponible.`
-                      : `${options.length} ${optionsName}. Una decisión menos.`}
+                </div>
+                {mode === 'food' && winner && (
+                  <button
+                    className="food-button food-button--quiet"
+                    type="button"
+                    onClick={() => filterRestaurants(winner.id)}
+                  >
+                    Elegir restaurante de {winner.name}
+                  </button>
+                )}
+              </div>
+              <section className="food-roulette__selection" aria-labelledby="roulette-restaurants">
+                <div className="food-roulette__selection-heading">
+                  <div>
+                    <p className="food-kicker">A tu gusto</p>
+                    <h2 id="roulette-restaurants">
+                      {mode === 'food' ? 'Tipos de comida' : 'Restaurantes'} en la ruleta
+                    </h2>
+                  </div>
+                  <span
+                    className="food-roulette__count"
+                    aria-label={`${options.length} de ${allOptions.length} seleccionados`}
+                  >
+                    {options.length}
+                    <span> / {allOptions.length}</span>
+                  </span>
+                </div>
+                <p className="food-roulette__selection-hint">
+                  Toca una tarjeta para incluirla o quitarla del sorteo.
                 </p>
-              )}
+                {mode === 'food' && allOptions.length === 0 && (
+                  <p>Vuelve a «Restaurante» y marca alguna opción para ver sus tipos de comida.</p>
+                )}
+                <ul className="food-roulette__legend">
+                  {allOptions.map((option) => {
+                    const index = options.indexOf(option);
+                    return (
+                      <li key={option.id}>
+                        <label className="food-roulette__option">
+                          <input
+                            className="sr-only"
+                            type="checkbox"
+                            checked={index !== -1}
+                            disabled={pending !== null}
+                            onChange={() => toggleOption(option.id)}
+                          />
+                          <span
+                            className="food-roulette__badge"
+                            style={{
+                              backgroundColor:
+                                index === -1 ? undefined : COLORS[index % COLORS.length],
+                            }}
+                            aria-hidden="true"
+                          >
+                            {index === -1 ? '–' : index + 1}
+                          </span>
+                          <span className="food-roulette__option-copy">
+                            <span className="food-roulette__option-name">{option.name}</span>
+                            <span className="food-roulette__option-state" aria-hidden="true">
+                              {index === -1 ? 'Fuera del sorteo' : 'En la ruleta'}
+                            </span>
+                          </span>
+                          <span className="food-roulette__check" aria-hidden="true">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 16 16"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="m3 8 3 3 7-7" />
+                            </svg>
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             </div>
-            {mode === 'food' && winner && (
-              <button
-                className="food-button food-button--quiet"
-                type="button"
-                onClick={() => filterRestaurants(winner.id)}
-              >
-                Elegir restaurante de {winner.name}
-              </button>
-            )}
-            <section aria-labelledby="roulette-restaurants">
-              <h2 id="roulette-restaurants">
-                {mode === 'food' ? 'Tipos de comida' : 'Restaurantes'} en la ruleta
-              </h2>
-              <p>
-                Desmarca los {optionsName} que quieras quitar. Puedes volver a marcarlos cuando
-                quieras.
-              </p>
-              {mode === 'food' && allOptions.length === 0 && (
-                <p>Vuelve a «Restaurante» y marca alguna opción para ver sus tipos de comida.</p>
-              )}
-              <ul className="food-roulette__legend">
-                {allOptions.map((option) => {
-                  const index = options.indexOf(option);
-                  return (
-                    <li key={option.id}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={index !== -1}
-                          disabled={pending !== null}
-                          onChange={() => toggleOption(option.id)}
-                        />
-                        <span
-                          style={{
-                            backgroundColor:
-                              index === -1 ? 'var(--food-muted)' : COLORS[index % COLORS.length],
-                          }}
-                          aria-hidden="true"
-                        >
-                          {index === -1 ? '–' : index + 1}
-                        </span>
-                        {option.name}
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
           </>
         )}
       </main>
