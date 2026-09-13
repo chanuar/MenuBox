@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation, useMatches } from 'react-router';
 import FoodHeader from '../products/food/components/FoodHeader';
+import FoodMark from '../products/food/components/FoodMark';
 
 const SITE_URL = 'https://menubox.chanuar.com';
 
@@ -94,8 +95,11 @@ export function RouteEnvironment({ loading = false }: { loading?: boolean }) {
         >
           <FoodHeader compact />
           <main id="main-content" className="food-state food-state--centered" tabIndex={-1}>
+            <div className="food-state__symbol food-loading-mark" aria-hidden="true">
+              <FoodMark />
+            </div>
             <p className="food-kicker">La mesa del equipo</p>
-            <h1>Un momento…</h1>
+            <h1>Preparando la mesa</h1>
             <p role="status">Estamos cargando MenuBox.</p>
           </main>
         </div>

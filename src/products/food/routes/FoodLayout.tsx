@@ -10,7 +10,7 @@ export function Component() {
     <>
       {navigation.state !== 'idle' && (
         <div className="route-loading" role="status" aria-live="polite">
-          Cargando…
+          <span className="sr-only">Cargando página…</span>
         </div>
       )}
       <Outlet />

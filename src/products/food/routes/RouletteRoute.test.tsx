@@ -80,6 +80,37 @@ it('reveals the result immediately with reduced motion', () => {
   screen.getAllByRole('button').forEach((button) => expect(button).toBeEnabled());
 });
 
+it.each([false, true])(
+  'updates both selection modes without delaying a spin (reduced motion: %s)',
+  (reduced) => {
+    const transition = vi.fn((update: () => void) => update());
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: transition,
+    });
+    try {
+      const { container } = show(restaurants, reduced);
+      for (const mode of ['Restaurante', 'Tipo de comida']) {
+        fireEvent.click(screen.getByRole('radio', { name: mode }));
+        const pizza = screen.getByRole('checkbox', { name: 'Pizza' });
+        pizza.focus();
+        fireEvent.click(pizza);
+        expect(pizza).not.toBeChecked();
+        expect(pizza).toHaveFocus();
+        expect(container.querySelectorAll('.food-roulette__number')).toHaveLength(2);
+        fireEvent.click(pizza);
+        expect(pizza).toBeChecked();
+        expect(container.querySelectorAll('.food-roulette__number')).toHaveLength(3);
+      }
+      expect(transition).toHaveBeenCalledTimes(reduced ? 0 : 4);
+      fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta' }));
+      expect(screen.getByRole('status')).toHaveTextContent(reduced ? '¡Hoy toca' : 'Eligiendo');
+    } finally {
+      Reflect.deleteProperty(document, 'startViewTransition');
+    }
+  },
+);
+
 it('selects the only restaurant immediately', () => {
   show(restaurants.slice(0, 1));
   fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta' }));

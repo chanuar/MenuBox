@@ -1180,15 +1180,55 @@ body.food-page :focus-visible {
 .route-loading {
   position: fixed;
   z-index: 1500;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 1px solid var(--food-herb);
-  border-radius: 8px;
-  padding: 10px 18px;
-  background: var(--food-paper);
-  color: var(--food-herb);
-  box-shadow: 0 4px 16px #25251f14;
+  inset: 0 0 auto;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  animation: food-loading-appear 0s 150ms both;
+}
+.route-loading::after {
+  content: '';
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 100px;
+  background: var(--food-herb);
+  animation: food-loading-progress 1.2s ease-in-out infinite;
+}
+.food-loading-mark {
+  animation: food-loading-breathe 1.6s ease-in-out infinite alternate;
+}
+@keyframes food-loading-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes food-loading-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+@keyframes food-loading-breathe {
+  to {
+    opacity: 0.5;
+    transform: scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-loading,
+  .route-loading::after,
+  .food-loading-mark {
+    animation: none;
+  }
+  .route-loading::after {
+    width: 100%;
+  }
 }
 
 .food-confirmation {
@@ -2286,6 +2326,21 @@ body.food-page .food-admin-current :focus-visible {
     inset 0 0 0 1px #ffffff38,
     inset 0 0 26px #25251f20;
 }
+:root:has(.food-roulette) {
+  view-transition-name: none;
+}
+.food-roulette__wheel-wrap {
+  view-transition-name: roulette-wheel;
+}
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(roulette-wheel),
+::view-transition-old(roulette-wheel),
+::view-transition-new(roulette-wheel) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
 .food-roulette__pointer {
   position: absolute;
   z-index: 1;
@@ -2493,7 +2548,9 @@ body.food-page .food-admin-current :focus-visible {
   border-bottom: 1px solid var(--food-line);
   color: var(--food-muted);
   cursor: pointer;
-  transition: background 0.18s;
+  transition:
+    background 0.18s,
+    color 0.2s;
 }
 .food-roulette__option:has(input:checked) {
   color: var(--food-ink);
@@ -2515,6 +2572,9 @@ body.food-page .food-admin-current :focus-visible {
   color: var(--food-muted);
   font-size: 0.875rem;
   font-weight: 650;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 .food-roulette__option:has(input:checked) .food-roulette__badge {
   color: white;
@@ -2541,16 +2601,24 @@ body.food-page .food-admin-current :focus-visible {
   border: 1px solid var(--food-field-line);
   border-radius: 50%;
   color: white;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 .food-roulette__check svg {
-  visibility: hidden;
+  opacity: 0;
+  transform: scale(0.65);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
 }
 .food-roulette__option:has(input:checked) .food-roulette__check {
   border-color: var(--food-herb);
   background: var(--food-herb);
 }
 .food-roulette__option:has(input:checked) .food-roulette__check svg {
-  visibility: visible;
+  opacity: 1;
+  transform: scale(1);
 }
 @media (max-width: 1000px) {
   .food-roulette__legend {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, useLoaderData } from 'react-router';
 import { getRestaurantOptions } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
@@ -69,10 +70,20 @@ export function Component() {
   function toggleOption(id: string) {
     if (pending) return;
     const setExcludedOptions = mode === 'food' ? setExcludedTypes : setExcluded;
-    setExcludedOptions((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-    resetSpin();
+    const update = () => {
+      setExcludedOptions((current) =>
+        current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+      );
+      resetSpin();
+    };
+    if (
+      document.startViewTransition &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      document.startViewTransition(() => flushSync(update));
+    } else {
+      update();
+    }
   }
 
   function spin() {

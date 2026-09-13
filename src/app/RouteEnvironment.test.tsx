@@ -96,6 +96,40 @@ describe('route surfaces', () => {
     expect(screen.getByRole('main')).toHaveFocus();
   });
 
+  it('keeps the current page usable while announcing a pending navigation', async () => {
+    let finishLoading!: () => void;
+    const router = createMemoryRouter([
+      {
+        Component: RouteEnvironment,
+        children: [
+          {
+            Component: FoodLayout,
+            children: [
+              { path: '/', handle: { page: 'food' }, Component: Page },
+              {
+                path: '/roulette',
+                handle: { page: 'roulette' },
+                Component: Page,
+                loader: () =>
+                  new Promise((resolve) => {
+                    finishLoading = () => resolve(null);
+                  }),
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Ruleta' }));
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando página');
+    expect(screen.getByRole('main')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Restaurantes' })).toBeVisible();
+    await act(async () => finishLoading());
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
   it('keeps navigation, focus and metadata consistent on public, private and missing pages', async () => {
     const router = createMemoryRouter(
       [

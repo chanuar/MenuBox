@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { rpc, signInWithPassword } = vi.hoisted(() => ({
   rpc: vi.fn(),
@@ -25,7 +25,9 @@ vi.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
-import { foodAdminApi, foodAuth, getOrder } from './foodApi';
+import { foodAdminApi, foodAuth, getOrder, getRestaurantOptions } from './foodApi';
+
+afterEach(() => vi.useRealTimers());
 
 describe('food API normalization', () => {
   beforeEach(() => {
@@ -97,5 +99,30 @@ describe('food API normalization', () => {
     await expect(getOrder('missing', 'token')).rejects.toMatchObject({
       code: 'FOOD_ORDER_NOT_FOUND',
     });
+  });
+
+  it('shares catalog requests, expires after a minute, retries failures and invalidates edited hours', async () => {
+    vi.useFakeTimers();
+    const restaurant = { id: 'restaurant-1', name: 'La Cocina' };
+    rpc.mockResolvedValue({ data: [restaurant], error: null });
+    const results = await Promise.all([getRestaurantOptions(), getRestaurantOptions()]);
+    expect(results[0]).toEqual(results[1]);
+    expect(results[0]).toMatchObject([{ id: restaurant.id, openingHours: [] }]);
+    await getRestaurantOptions();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenLastCalledWith('food_restaurant_options', {});
+
+    vi.advanceTimersByTime(60_000);
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } });
+    await expect(getRestaurantOptions()).rejects.toThrow();
+    await expect(getRestaurantOptions()).resolves.toHaveLength(1);
+    expect(rpc).toHaveBeenCalledTimes(3);
+
+    const hours = [{ day: 1, periods: [{ open: '12:00', close: '23:30' }] }];
+    rpc.mockResolvedValueOnce({ data: { ...restaurant, opening_hours: hours }, error: null });
+    await foodAdminApi.updateRestaurantHours(restaurant.id, hours);
+    rpc.mockResolvedValueOnce({ data: [{ ...restaurant, opening_hours: hours }], error: null });
+    await expect(getRestaurantOptions()).resolves.toMatchObject([{ openingHours: hours }]);
+    expect(rpc).toHaveBeenCalledTimes(5);
   });
 });

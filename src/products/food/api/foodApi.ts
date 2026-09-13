@@ -219,11 +219,28 @@ export async function getActiveMenu(): Promise<ActiveMenu | null> {
   };
 }
 
+// ponytail: catalog freshness is bounded to one minute per tab; use live invalidation if needed.
+let restaurantOptions: { data: Promise<Restaurant[]>; expiresAt: number } | null = null;
+
 export async function getRestaurantOptions(): Promise<Restaurant[]> {
   if (!foodConfigured) return [];
-  return ((await rpc<RawRestaurant[]>('food_restaurant_options')) ?? [])
-    .map(normalizeRestaurant)
-    .filter((item): item is Restaurant => item !== null);
+  if (restaurantOptions && Date.now() < restaurantOptions.expiresAt) return restaurantOptions.data;
+  const request = {
+    expiresAt: Infinity,
+    data: rpc<RawRestaurant[]>('food_restaurant_options')
+      .then((data) => {
+        request.expiresAt = Date.now() + 60_000;
+        return (data ?? [])
+          .map(normalizeRestaurant)
+          .filter((item): item is Restaurant => item !== null);
+      })
+      .catch((error: unknown) => {
+        if (restaurantOptions === request) restaurantOptions = null;
+        throw error;
+      }),
+  };
+  restaurantOptions = request;
+  return request.data;
 }
 
 export async function submitOrder(input: {
@@ -362,6 +379,7 @@ export const foodAdminApi = {
     );
     if (!restaurant)
       throw new FoodApiError('FOOD_INVALID_RESPONSE', 'El restaurante actualizado no es válido.');
+    restaurantOptions = null;
     return restaurant;
   },
   closeCycle: (cycleId: string, serviceFeeCents: number) =>
