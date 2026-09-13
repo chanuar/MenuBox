@@ -9,11 +9,14 @@ export const loader = () => getRestaurantOptions();
 const COLORS = ['#b8422c', '#41614b', '#77528b', '#276779', '#815924'];
 
 export function Component() {
-  const restaurants = useLoaderData() as Restaurant[];
+  const allRestaurants = useLoaderData() as Restaurant[];
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const restaurants = allRestaurants.filter((restaurant) => !excluded.includes(restaurant.id));
   const [rotation, setRotation] = useState(0);
   const [pending, setPending] = useState<Restaurant | null>(null);
   const [winner, setWinner] = useState<Restaurant | null>(null);
-  const slice = 360 / restaurants.length;
+  const slice = restaurants.length ? 360 / restaurants.length : 0;
+  const spinDisabled = pending !== null || restaurants.length === 0;
 
   useEffect(() => {
     if (!pending) return;
@@ -23,6 +26,15 @@ export function Component() {
     }, 4200);
     return () => window.clearTimeout(timer);
   }, [pending]);
+
+  function toggleRestaurant(id: string) {
+    if (pending) return;
+    setExcluded((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+    setWinner(null);
+    setRotation(0);
+  }
 
   function spin() {
     if (pending || restaurants.length === 0) return;
@@ -46,9 +58,11 @@ export function Component() {
         <header className="food-options__intro">
           <p className="food-kicker">Que decida la suerte</p>
           <h1>¿Dónde comemos hoy?</h1>
-          <p>Gira la ruleta: todos los restaurantes tienen la misma probabilidad de salir.</p>
+          <p>
+            Gira la ruleta: los restaurantes seleccionados tienen la misma probabilidad de salir.
+          </p>
         </header>
-        {restaurants.length === 0 ? (
+        {allRestaurants.length === 0 ? (
           <section className="food-state food-state--inline">
             <h2>Todavía no hay restaurantes disponibles</h2>
             <p>
@@ -60,13 +74,17 @@ export function Component() {
           </section>
         ) : (
           <>
-            <div className="food-roulette__wheel-wrap" aria-hidden="true">
-              <div className="food-roulette__pointer" />
+            <div className="food-roulette__wheel-wrap">
+              <div className="food-roulette__pointer" aria-hidden="true" />
               <div
                 className="food-roulette__wheel"
+                aria-hidden="true"
                 style={{
                   transform: `rotate(${rotation}deg)`,
-                  background: `conic-gradient(${restaurants.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`,
+                  transition: pending ? undefined : 'none',
+                  background: restaurants.length
+                    ? `conic-gradient(${restaurants.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`
+                    : 'var(--food-line)',
                 }}
               >
                 {restaurants.map((restaurant, index) => (
@@ -79,14 +97,17 @@ export function Component() {
                   </span>
                 ))}
               </div>
-              <span className="food-roulette__hub">M</span>
+              <button
+                className="food-roulette__hub"
+                type="button"
+                aria-label="Girar ruleta desde el centro"
+                disabled={spinDisabled}
+                onClick={spin}
+              >
+                M
+              </button>
             </div>
-            <button
-              className="food-button"
-              type="button"
-              disabled={pending !== null}
-              onClick={spin}
-            >
+            <button className="food-button" type="button" disabled={spinDisabled} onClick={spin}>
               {pending ? 'Girando…' : winner ? 'Volver a girar' : 'Girar ruleta'}
             </button>
             <div
@@ -111,27 +132,47 @@ export function Component() {
                 </>
               ) : (
                 <p>
-                  {restaurants.length === 1
-                    ? 'Solo hay un restaurante disponible.'
-                    : `${restaurants.length} restaurantes. Una decisión menos.`}
+                  {restaurants.length === 0
+                    ? 'Selecciona al menos un restaurante para girar.'
+                    : restaurants.length === 1
+                      ? 'Solo hay un restaurante disponible.'
+                      : `${restaurants.length} restaurantes. Una decisión menos.`}
                 </p>
               )}
             </div>
             <section aria-labelledby="roulette-restaurants">
               <h2 id="roulette-restaurants">Restaurantes en la ruleta</h2>
-              <ol className="food-roulette__legend">
-                {restaurants.map((restaurant, index) => (
-                  <li key={restaurant.id}>
-                    <span
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      aria-hidden="true"
-                    >
-                      {index + 1}
-                    </span>
-                    {restaurant.name}
-                  </li>
-                ))}
-              </ol>
+              <p>
+                Desmarca los restaurantes que quieras quitar. Puedes volver a marcarlos cuando
+                quieras.
+              </p>
+              <ul className="food-roulette__legend">
+                {allRestaurants.map((restaurant) => {
+                  const index = restaurants.indexOf(restaurant);
+                  return (
+                    <li key={restaurant.id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={index !== -1}
+                          disabled={pending !== null}
+                          onChange={() => toggleRestaurant(restaurant.id)}
+                        />
+                        <span
+                          style={{
+                            backgroundColor:
+                              index === -1 ? 'var(--food-muted)' : COLORS[index % COLORS.length],
+                          }}
+                          aria-hidden="true"
+                        >
+                          {index === -1 ? '–' : index + 1}
+                        </span>
+                        {restaurant.name}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
           </>
         )}
