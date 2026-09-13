@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { Component, loader } from './RouletteRoute';
+import { getFoodTypes } from '../model/foodTypes';
 import type { Restaurant } from '../model/types';
 
 vi.mock('../api/foodApi', () => ({
@@ -10,15 +11,16 @@ vi.mock('../api/foodApi', () => ({
   getRestaurantOptions: vi.fn().mockResolvedValue([]),
 }));
 
-const restaurants: Restaurant[] = ['Pizza', 'Sushi', 'Tacos'].map((name) => ({
+const makeRestaurant = (name: string, description = ''): Restaurant => ({
   id: name,
   name,
-  description: '',
+  description,
   imageUrl: null,
   sourceUrl: `https://example.com/${name}`,
   availableItems: 1,
   openingHours: [],
-}));
+});
+const restaurants = ['Pizza', 'Sushi', 'Tacos'].map((name) => makeRestaurant(name));
 
 function show(items = restaurants, reduced = false) {
   vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: reduced }));
@@ -43,6 +45,7 @@ it('finishes on the selected segment, announces it, and supports another spin', 
   fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta' }));
   screen.getAllByRole('button').forEach((button) => expect(button).toBeDisabled());
   screen.getAllByRole('checkbox').forEach((checkbox) => expect(checkbox).toBeDisabled());
+  screen.getAllByRole('radio').forEach((radio) => expect(radio).toBeDisabled());
   expect(screen.getByRole('status')).toHaveTextContent('Eligiendo restaurante');
   expect(container.querySelector('.food-roulette__wheel')).toHaveStyle({
     transform: 'rotate(1980deg)',
@@ -81,6 +84,114 @@ it('selects the only restaurant immediately', () => {
   show(restaurants.slice(0, 1));
   fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta' }));
   expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza!');
+});
+
+it('groups multiple cuisines without duplicate types and keeps unclassified restaurants', () => {
+  const pizzaKebab = makeRestaurant('Pizzería KEBAB');
+  const burger = makeRestaurant("McDonald's");
+  const pasta = makeRestaurant('La casa', 'Cocina italiana, pasta y pizza');
+  const unknown = makeRestaurant('La plaza', 'Usa tu cuenta de Uber para pedir pizza');
+  expect(getFoodTypes([pizzaKebab, burger, pasta, unknown])).toEqual([
+    { id: 'pizza', name: 'Pizza', restaurants: [pizzaKebab, pasta] },
+    { id: 'burgers', name: 'Hamburguesas', restaurants: [burger] },
+    { id: 'kebab', name: 'Kebab', restaurants: [pizzaKebab] },
+    { id: 'italian', name: 'Italiana', restaurants: [pasta] },
+    { id: 'other', name: 'Otros', restaurants: [unknown] },
+  ]);
+  expect(getFoodTypes([])).toEqual([]);
+});
+
+it('gives cuisines equal segments and narrows the next spin to matching restaurants', async () => {
+  const user = userEvent.setup();
+  const random = vi.spyOn(Math, 'random').mockReturnValue(0.6);
+  const { container } = show(
+    ['Pizza Norte', 'Pizza Sur', 'Sushi'].map((name) => makeRestaurant(name)),
+    true,
+  );
+  const restaurantMode = screen.getByRole('radio', { name: 'Restaurante' });
+  restaurantMode.focus();
+  await user.keyboard('{ArrowRight}');
+  expect(screen.getByRole('radio', { name: 'Tipo de comida' })).toBeChecked();
+  expect(screen.getByRole('status')).toHaveTextContent('2 tipos de comida');
+  expect(container.querySelectorAll('.food-roulette__number')).toHaveLength(2);
+  await user.click(screen.getByRole('button', { name: 'Girar ruleta desde el centro' }));
+  expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Sushi!');
+  expect(container.querySelector('.food-roulette__wheel')).toHaveStyle({
+    transform: 'rotate(1890deg)',
+  });
+  expect(screen.queryByRole('link', { name: /Ver carta/ })).not.toBeInTheDocument();
+
+  random.mockReturnValue(0);
+  await user.click(screen.getByRole('button', { name: 'Volver a girar' }));
+  await user.click(screen.getByRole('button', { name: 'Elegir restaurante de Pizza' }));
+  expect(restaurantMode).toBeChecked();
+  expect(restaurantMode).toHaveFocus();
+  expect(screen.getByRole('status')).toHaveTextContent('2 restaurantes');
+  expect(screen.queryByRole('checkbox', { name: 'Sushi' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza Norte' }));
+  await user.click(screen.getByRole('button', { name: 'Girar ruleta' }));
+  expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza Sur!');
+  expect(screen.getByRole('link', { name: /Ver carta/ })).toHaveAttribute(
+    'href',
+    'https://example.com/Pizza Sur',
+  );
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza Sur' }));
+  await user.click(screen.getByRole('button', { name: 'Ver todos los restaurantes' }));
+  expect(restaurantMode).toHaveFocus();
+  expect(screen.getByRole('checkbox', { name: 'Sushi' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Pizza Norte' })).not.toBeChecked();
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  expect(screen.queryByRole('checkbox', { name: 'Pizza' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Girar ruleta' }));
+  expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Sushi!');
+  await user.click(screen.getByRole('radio', { name: 'Restaurante' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Sushi' }));
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.getByText(/Vuelve a «Restaurante»/)).toBeVisible();
+  await user.click(screen.getByRole('radio', { name: 'Restaurante' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Sushi' }));
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  expect(screen.getByRole('checkbox', { name: 'Sushi' })).toBeChecked();
+});
+
+it('preserves independent exclusions across modes and can recover from no selected cuisines', async () => {
+  const user = userEvent.setup();
+  show(restaurants, true);
+  await user.click(screen.getByRole('checkbox', { name: 'Tacos' }));
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  expect(screen.queryByRole('checkbox', { name: 'Mexicana' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('checkbox', { name: 'Sushi' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
+  expect(screen.getByRole('status')).toHaveTextContent('Selecciona al menos un tipo de comida');
+  screen.getAllByRole('button').forEach((button) => expect(button).toBeDisabled());
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
+  await user.click(screen.getByRole('button', { name: 'Girar ruleta desde el centro' }));
+  expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza!');
+  await user.click(screen.getByRole('radio', { name: 'Restaurante' }));
+  expect(screen.getByRole('status')).not.toHaveTextContent('¡Hoy toca');
+  expect(screen.getByRole('checkbox', { name: 'Tacos' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Sushi' })).toBeChecked();
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  expect(screen.getByRole('checkbox', { name: 'Sushi' })).not.toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Pizza' })).toBeChecked();
+});
+
+it('locks cuisine controls during animation and clears the result when switching modes', () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  show();
+  fireEvent.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta desde el centro' }));
+  expect(screen.getByRole('status')).toHaveTextContent('Eligiendo tipo de comida');
+  screen.getAllByRole('radio').forEach((radio) => expect(radio).toBeDisabled());
+  screen.getAllByRole('checkbox').forEach((checkbox) => expect(checkbox).toBeDisabled());
+  act(() => vi.advanceTimersByTime(4200));
+  expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza!');
+  fireEvent.click(screen.getByRole('radio', { name: 'Restaurante' }));
+  act(() => vi.advanceTimersByTime(4200));
+  expect(screen.getByRole('status')).toHaveTextContent('3 restaurantes');
+  expect(screen.queryByRole('button', { name: /Elegir restaurante de/ })).not.toBeInTheDocument();
 });
 
 it('excludes restaurants from the wheel and draw, clears the result, and allows reselecting', async () => {

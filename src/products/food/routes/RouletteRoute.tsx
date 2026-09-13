@@ -1,22 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLoaderData } from 'react-router';
 import { foodConfigured, getRestaurantOptions } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
+import { getFoodTypes } from '../model/foodTypes';
 import type { Restaurant } from '../model/types';
 
 export const loader = () => getRestaurantOptions();
 
 const COLORS = ['#b8422c', '#41614b', '#77528b', '#276779', '#815924'];
+type RouletteOption = Pick<Restaurant, 'id' | 'name'> & { sourceUrl?: string | null };
 
 export function Component() {
   const allRestaurants = useLoaderData() as Restaurant[];
+  const [mode, setMode] = useState<'restaurant' | 'food'>('restaurant');
   const [excluded, setExcluded] = useState<string[]>([]);
-  const restaurants = allRestaurants.filter((restaurant) => !excluded.includes(restaurant.id));
+  const [excludedTypes, setExcludedTypes] = useState<string[]>([]);
+  const [foodFilter, setFoodFilter] = useState<string | null>(null);
+  const foodTypes = getFoodTypes(allRestaurants);
+  const filteredType = foodTypes.find(({ id }) => id === foodFilter);
+  const allOptions =
+    mode === 'food'
+      ? foodTypes.filter(({ restaurants }) => restaurants.some(({ id }) => !excluded.includes(id)))
+      : (filteredType?.restaurants ?? allRestaurants);
+  const excludedOptions = mode === 'food' ? excludedTypes : excluded;
+  const options = allOptions.filter(({ id }) => !excludedOptions.includes(id));
+  const optionName = mode === 'food' ? 'tipo de comida' : 'restaurante';
+  const optionsName = mode === 'food' ? 'tipos de comida' : 'restaurantes';
   const [rotation, setRotation] = useState(0);
-  const [pending, setPending] = useState<Restaurant | null>(null);
-  const [winner, setWinner] = useState<Restaurant | null>(null);
-  const slice = restaurants.length ? 360 / restaurants.length : 0;
-  const spinDisabled = pending !== null || restaurants.length === 0;
+  const [pending, setPending] = useState<RouletteOption | null>(null);
+  const [winner, setWinner] = useState<RouletteOption | null>(null);
+  const restaurantMode = useRef<HTMLInputElement>(null);
+  const slice = options.length ? 360 / options.length : 0;
+  const spinDisabled = pending !== null || options.length === 0;
 
   useEffect(() => {
     if (!pending) return;
@@ -27,23 +42,43 @@ export function Component() {
     return () => window.clearTimeout(timer);
   }, [pending]);
 
-  function toggleRestaurant(id: string) {
-    if (pending) return;
-    setExcluded((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
+  function resetSpin() {
     setWinner(null);
     setRotation(0);
   }
 
+  function changeMode(next: typeof mode) {
+    if (pending) return;
+    setMode(next);
+    setFoodFilter(null);
+    resetSpin();
+  }
+
+  function filterRestaurants(typeId: string | null) {
+    if (pending) return;
+    setMode('restaurant');
+    setFoodFilter(typeId);
+    resetSpin();
+    restaurantMode.current?.focus();
+  }
+
+  function toggleOption(id: string) {
+    if (pending) return;
+    const setExcludedOptions = mode === 'food' ? setExcludedTypes : setExcluded;
+    setExcludedOptions((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+    resetSpin();
+  }
+
   function spin() {
-    if (pending || restaurants.length === 0) return;
-    const index = Math.floor(Math.random() * restaurants.length);
-    const selected = restaurants[index];
+    if (spinDisabled) return;
+    const index = Math.floor(Math.random() * options.length);
+    const selected = options[index];
     if (!selected) return;
     const target = 360 - (index + 0.5) * slice;
     setRotation((current) => current + 1800 + ((target - (current % 360) + 360) % 360));
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || restaurants.length === 1) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || options.length === 1) {
       setWinner(selected);
     } else {
       setWinner(null);
@@ -57,9 +92,9 @@ export function Component() {
       <main id="main-content" className="food-options food-roulette" tabIndex={-1}>
         <header className="food-options__intro">
           <p className="food-kicker">Que decida la suerte</p>
-          <h1>¿Dónde comemos hoy?</h1>
+          <h1>{mode === 'food' ? '¿Qué comemos hoy?' : '¿Dónde comemos hoy?'}</h1>
           <p>
-            Gira la ruleta: los restaurantes seleccionados tienen la misma probabilidad de salir.
+            Gira la ruleta: los {optionsName} seleccionados tienen la misma probabilidad de salir.
           </p>
         </header>
         {allRestaurants.length === 0 ? (
@@ -74,6 +109,43 @@ export function Component() {
           </section>
         ) : (
           <>
+            <fieldset className="food-roulette__mode" disabled={pending !== null}>
+              <legend className="sr-only">Qué quieres decidir</legend>
+              <label>
+                <input
+                  ref={restaurantMode}
+                  type="radio"
+                  name="roulette-mode"
+                  checked={mode === 'restaurant'}
+                  onChange={() => changeMode('restaurant')}
+                />
+                Restaurante
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="roulette-mode"
+                  checked={mode === 'food'}
+                  onChange={() => changeMode('food')}
+                />
+                Tipo de comida
+              </label>
+            </fieldset>
+            {filteredType && (
+              <div className="food-roulette__filter">
+                <p>
+                  Restaurantes de <strong>{filteredType.name}</strong>
+                </p>
+                <button
+                  className="food-button food-button--quiet"
+                  type="button"
+                  disabled={pending !== null}
+                  onClick={() => filterRestaurants(null)}
+                >
+                  Ver todos los restaurantes
+                </button>
+              </div>
+            )}
             <div className="food-roulette__wheel-wrap">
               <div className="food-roulette__pointer" aria-hidden="true" />
               <div
@@ -82,15 +154,15 @@ export function Component() {
                 style={{
                   transform: `rotate(${rotation}deg)`,
                   transition: pending ? undefined : 'none',
-                  background: restaurants.length
-                    ? `conic-gradient(${restaurants.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`
+                  background: options.length
+                    ? `conic-gradient(${options.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`
                     : 'var(--food-line)',
                 }}
               >
-                {restaurants.map((restaurant, index) => (
+                {options.map((option, index) => (
                   <span
                     className="food-roulette__number"
-                    key={restaurant.id}
+                    key={option.id}
                     style={{ transform: `rotate(${(index + 0.5) * slice}deg)` }}
                   >
                     <span>{index + 1}</span>
@@ -117,7 +189,7 @@ export function Component() {
               aria-atomic="true"
             >
               {pending ? (
-                <p>Eligiendo restaurante…</p>
+                <p>Eligiendo {optionName}…</p>
               ) : winner ? (
                 <>
                   <p>
@@ -132,31 +204,45 @@ export function Component() {
                 </>
               ) : (
                 <p>
-                  {restaurants.length === 0
-                    ? 'Selecciona al menos un restaurante para girar.'
-                    : restaurants.length === 1
-                      ? 'Solo hay un restaurante disponible.'
-                      : `${restaurants.length} restaurantes. Una decisión menos.`}
+                  {options.length === 0
+                    ? `Selecciona al menos un ${optionName} para girar.`
+                    : options.length === 1
+                      ? `Solo hay un ${optionName} disponible.`
+                      : `${options.length} ${optionsName}. Una decisión menos.`}
                 </p>
               )}
             </div>
+            {mode === 'food' && winner && (
+              <button
+                className="food-button food-button--quiet"
+                type="button"
+                onClick={() => filterRestaurants(winner.id)}
+              >
+                Elegir restaurante de {winner.name}
+              </button>
+            )}
             <section aria-labelledby="roulette-restaurants">
-              <h2 id="roulette-restaurants">Restaurantes en la ruleta</h2>
+              <h2 id="roulette-restaurants">
+                {mode === 'food' ? 'Tipos de comida' : 'Restaurantes'} en la ruleta
+              </h2>
               <p>
-                Desmarca los restaurantes que quieras quitar. Puedes volver a marcarlos cuando
+                Desmarca los {optionsName} que quieras quitar. Puedes volver a marcarlos cuando
                 quieras.
               </p>
+              {mode === 'food' && allOptions.length === 0 && (
+                <p>Vuelve a «Restaurante» y marca alguna opción para ver sus tipos de comida.</p>
+              )}
               <ul className="food-roulette__legend">
-                {allRestaurants.map((restaurant) => {
-                  const index = restaurants.indexOf(restaurant);
+                {allOptions.map((option) => {
+                  const index = options.indexOf(option);
                   return (
-                    <li key={restaurant.id}>
+                    <li key={option.id}>
                       <label>
                         <input
                           type="checkbox"
                           checked={index !== -1}
                           disabled={pending !== null}
-                          onChange={() => toggleRestaurant(restaurant.id)}
+                          onChange={() => toggleOption(option.id)}
                         />
                         <span
                           style={{
@@ -167,7 +253,7 @@ export function Component() {
                         >
                           {index === -1 ? '–' : index + 1}
                         </span>
-                        {restaurant.name}
+                        {option.name}
                       </label>
                     </li>
                   );
