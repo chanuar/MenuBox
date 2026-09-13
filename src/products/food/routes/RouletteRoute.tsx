@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, useLoaderData } from 'react-router';
 import { getRestaurantOptions } from '../api/foodApi';
@@ -20,10 +20,17 @@ export function Component() {
   const [foodFilter, setFoodFilter] = useState<string | null>(null);
   const foodTypes = getFoodTypes(allRestaurants);
   const filteredType = foodTypes.find(({ id }) => id === foodFilter);
-  const allOptions =
-    mode === 'food'
-      ? foodTypes.filter(({ restaurants }) => restaurants.some(({ id }) => !excluded.includes(id)))
-      : (filteredType?.restaurants ?? allRestaurants);
+  const allOptions = (mode === 'food' ? foodTypes : allRestaurants)
+    .map((option, index) => ({
+      ...option,
+      number: index + 1,
+      color: COLORS[index % COLORS.length],
+    }))
+    .filter((option) =>
+      'restaurants' in option
+        ? option.restaurants.some(({ id }) => !excluded.includes(id))
+        : !filteredType || filteredType.restaurants.some(({ id }) => id === option.id),
+    );
   const excludedOptions = mode === 'food' ? excludedTypes : excluded;
   const options = allOptions.filter(({ id }) => !excludedOptions.includes(id));
   const optionName = mode === 'food' ? 'tipo de comida' : 'restaurante';
@@ -33,9 +40,13 @@ export function Component() {
   const [winner, setWinner] = useState<RouletteOption | null>(null);
   const restaurantMode = useRef<HTMLInputElement>(null);
   const selectionHeading = useRef<HTMLHeadingElement>(null);
+  const result = useRef<HTMLDivElement>(null);
+  const spinTrigger = useRef<HTMLButtonElement>(null);
   const winningRestaurant =
     mode === 'restaurant' ? allRestaurants.find(({ id }) => id === winner?.id) : undefined;
   const slice = options.length ? 360 / options.length : 0;
+  const separator = Math.min(0.5, slice / 8);
+  const labelWidth = Math.min(32, 56 * Math.sin(Math.PI / Math.max(options.length, 2)));
   const spinDisabled = pending !== null || options.length === 0;
 
   useEffect(() => {
@@ -46,6 +57,16 @@ export function Component() {
     }, 4200);
     return () => window.clearTimeout(timer);
   }, [pending]);
+
+  useEffect(() => {
+    if (!winner) return;
+    if (document.activeElement === document.body) {
+      spinTrigger.current?.focus({ preventScroll: true });
+    }
+    if (document.activeElement === spinTrigger.current) {
+      result.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    }
+  }, [winner]);
 
   function resetSpin() {
     setWinner(null);
@@ -67,27 +88,42 @@ export function Component() {
     restaurantMode.current?.focus();
   }
 
-  function toggleOption(id: string) {
+  function updateSelection(updateExcluded: (current: string[]) => string[]) {
     if (pending) return;
     const setExcludedOptions = mode === 'food' ? setExcludedTypes : setExcluded;
     const update = () => {
-      setExcludedOptions((current) =>
-        current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-      );
+      setExcludedOptions(updateExcluded);
       resetSpin();
     };
     if (
       document.startViewTransition &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      document.startViewTransition(() => flushSync(update));
+      document
+        .startViewTransition(() => flushSync(update))
+        .ready.catch(() => {
+          // A newer selection may skip the snapshot; its state update still runs.
+        });
     } else {
       update();
     }
   }
 
-  function spin() {
+  function toggleOption(id: string) {
+    updateSelection((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  }
+
+  function selectAllOptions() {
+    const ids = new Set(allOptions.map(({ id }) => id));
+    updateSelection((current) => current.filter((id) => !ids.has(id)));
+    selectionHeading.current?.focus();
+  }
+
+  function spin(event: MouseEvent<HTMLButtonElement>) {
     if (spinDisabled) return;
+    spinTrigger.current = event.currentTarget;
     const index = Math.floor(Math.random() * options.length);
     const selected = options[index];
     if (!selected) return;
@@ -102,15 +138,13 @@ export function Component() {
   }
 
   return (
-    <div className="food-shell">
+    <div className="food-shell food-shell--roulette">
       <FoodHeader />
       <main id="main-content" className="food-options food-roulette" tabIndex={-1}>
         <header className="food-options__intro">
           <p className="food-kicker">Que decida la suerte</p>
           <h1>{mode === 'food' ? '¿Qué comemos hoy?' : '¿Dónde comemos hoy?'}</h1>
-          <p>
-            Gira la ruleta: los {optionsName} seleccionados tienen la misma probabilidad de salir.
-          </p>
+          <p>Elige tus opciones y deja que la suerte decida.</p>
         </header>
         {allRestaurants.length === 0 ? (
           <section className="food-state food-state--inline">
@@ -173,7 +207,7 @@ export function Component() {
             {filteredType && (
               <div className="food-roulette__filter">
                 <p>
-                  Restaurantes de <strong>{filteredType.name}</strong>
+                  Solo <strong>{filteredType.name}</strong>
                 </p>
                 <button
                   className="food-button food-button--quiet"
@@ -181,7 +215,8 @@ export function Component() {
                   disabled={pending !== null}
                   onClick={() => filterRestaurants(null)}
                 >
-                  Ver todos los restaurantes
+                  Quitar filtro <span className="sr-only">y ver todos los restaurantes</span>{' '}
+                  <span aria-hidden="true">×</span>
                 </button>
               </div>
             )}
@@ -200,32 +235,53 @@ export function Component() {
                   <div className="food-roulette__pointer" aria-hidden="true" />
                   <div
                     className="food-roulette__wheel"
+                    data-dense={options.length > 6 || undefined}
                     aria-hidden="true"
                     style={{
                       transform: `rotate(${rotation}deg)`,
                       transition: pending ? undefined : 'none',
                       background: options.length
-                        ? `conic-gradient(${options.map((_, index) => `${COLORS[index % COLORS.length]} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`
+                        ? [
+                            options.length > 1
+                              ? `repeating-conic-gradient(var(--food-paper) 0deg ${separator}deg, transparent ${separator}deg ${slice}deg)`
+                              : null,
+                            `conic-gradient(${options.map(({ color }, index) => `${color} ${index * slice}deg ${(index + 1) * slice}deg`).join(', ')})`,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')
                         : 'var(--food-line)',
                     }}
                   >
                     {options.map((option, index) => (
                       <span
-                        className={`food-roulette__number${options.length <= 8 ? ' food-roulette__number--named' : ''}`}
+                        className="food-roulette__number"
                         key={option.id}
                         style={{ transform: `rotate(${(index + 0.5) * slice}deg)` }}
                       >
-                        <span>
-                          <b>{index + 1}</b>
-                          {options.length <= 8 && <small>{option.name}</small>}
+                        <span
+                          style={{
+                            width: `${labelWidth}cqw`,
+                            transform: `rotate(${-rotation - (index + 0.5) * slice}deg)`,
+                            transition: pending ? undefined : 'none',
+                          }}
+                        >
+                          <b>{option.number}</b>
+                          {options.length <= 12 && <small>{option.name}</small>}
                         </span>
                       </span>
                     ))}
                   </div>
                   <button
                     className="food-roulette__hub"
+                    data-state={pending ? 'spinning' : options.length ? 'ready' : 'empty'}
                     type="button"
-                    aria-label="Girar ruleta desde el centro"
+                    aria-label={
+                      pending
+                        ? 'Girando ruleta'
+                        : options.length
+                          ? 'Girar ruleta desde el centro'
+                          : 'Elige opciones para girar la ruleta'
+                    }
                     disabled={spinDisabled}
                     onClick={spin}
                   >
@@ -242,11 +298,12 @@ export function Component() {
                     >
                       <path d="M20 7v5h-5M20 12a8 8 0 1 0-2.3 5.7" />
                     </svg>
-                    <span>Girar</span>
+                    <span>{pending ? 'Girando' : options.length ? 'Girar' : 'Elige'}</span>
                   </button>
                 </div>
                 <div
                   className="food-roulette__result"
+                  ref={result}
                   data-state={winner ? 'winner' : pending ? 'spinning' : 'idle'}
                   role="status"
                   aria-live="polite"
@@ -256,27 +313,29 @@ export function Component() {
                     <p>Eligiendo {optionName}…</p>
                   ) : winner ? (
                     <>
-                      {winningRestaurant?.imageUrl && (
-                        <img
-                          className="food-roulette__winner-image"
-                          key={winningRestaurant.imageUrl}
-                          src={winningRestaurant.imageUrl}
-                          alt=""
-                          onError={(event) => {
-                            event.currentTarget.hidden = true;
-                          }}
-                        />
-                      )}
-                      <h2 className="food-roulette__winner-name">
-                        ¡Hoy toca <strong>{winner.name}</strong>!
-                      </h2>
+                      <div className="food-roulette__winner-summary">
+                        {winningRestaurant?.imageUrl && (
+                          <img
+                            className="food-roulette__winner-image"
+                            key={winningRestaurant.imageUrl}
+                            src={winningRestaurant.imageUrl}
+                            alt=""
+                            onError={(event) => {
+                              event.currentTarget.hidden = true;
+                            }}
+                          />
+                        )}
+                        <h2 className="food-roulette__winner-name">
+                          ¡Hoy toca <strong>{winner.name}</strong>!
+                        </h2>
+                      </div>
                       {mode === 'food' ? (
                         <button
                           className="food-button"
                           type="button"
                           onClick={() => filterRestaurants(winner.id)}
                         >
-                          Elegir restaurante de {winner.name}
+                          Elegir restaurante <span className="sr-only">de {winner.name}</span>
                         </button>
                       ) : winner.sourceUrl ? (
                         <a
@@ -327,35 +386,51 @@ export function Component() {
                   </span>
                 </div>
                 <p className="food-roulette__selection-hint">
-                  Marca los que te apetecen. La suerte elige el resto.
+                  Marca los que te apetecen. Todos los seleccionados tienen la misma probabilidad.
                 </p>
+                {options.length < allOptions.length && (
+                  <button
+                    className="food-button food-button--quiet food-roulette__select-all"
+                    type="button"
+                    disabled={pending !== null}
+                    onClick={selectAllOptions}
+                  >
+                    Seleccionar todos
+                  </button>
+                )}
                 {mode === 'food' && allOptions.length === 0 && (
                   <p>Vuelve a «Restaurante» y marca alguna opción para ver sus tipos de comida.</p>
                 )}
                 <ul className="food-roulette__legend">
                   {allOptions.map((option) => {
-                    const index = options.indexOf(option);
+                    const selected = !excludedOptions.includes(option.id);
+                    const isWinner = winner?.id === option.id;
                     return (
                       <li key={option.id}>
-                        <label className="food-roulette__option">
+                        <label
+                          className="food-roulette__option"
+                          data-winner={isWinner || undefined}
+                        >
                           <input
                             className="sr-only"
                             type="checkbox"
-                            checked={index !== -1}
+                            checked={selected}
                             disabled={pending !== null}
                             onChange={() => toggleOption(option.id)}
                           />
                           <span
                             className="food-roulette__badge"
                             style={{
-                              backgroundColor:
-                                index === -1 ? undefined : COLORS[index % COLORS.length],
+                              backgroundColor: option.color,
                             }}
                             aria-hidden="true"
                           >
-                            {index === -1 ? '–' : index + 1}
+                            {option.number}
                           </span>
-                          <span className="food-roulette__option-name">{option.name}</span>
+                          <span className="food-roulette__option-name">
+                            {option.name}
+                            {isWinner && <small aria-hidden="true">Elegido</small>}
+                          </span>
                           <span className="food-roulette__check" aria-hidden="true">
                             <svg
                               width="14"

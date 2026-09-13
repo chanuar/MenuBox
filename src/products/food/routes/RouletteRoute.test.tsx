@@ -28,7 +28,10 @@ function show(items = restaurants, reduced = false) {
     initialEntries: ['/roulette'],
     hydrationData: { loaderData: { '0': items } },
   });
-  return render(<RouterProvider router={router} />);
+  const view = render(<RouterProvider router={router} />);
+  const result = screen.queryByRole('status');
+  if (result) result.scrollIntoView = vi.fn();
+  return view;
 }
 
 afterEach(() => {
@@ -42,22 +45,36 @@ it('finishes on the selected segment, announces it, and supports another spin', 
   vi.useFakeTimers();
   vi.spyOn(Math, 'random').mockReturnValueOnce(0.5).mockReturnValueOnce(0.99);
   const { container } = show();
-  fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta' }));
+  const spinButton = screen.getByRole('button', { name: 'Girar ruleta' });
+  spinButton.focus();
+  fireEvent.click(spinButton);
+  spinButton.blur();
   screen.getAllByRole('button').forEach((button) => expect(button).toBeDisabled());
   screen.getAllByRole('checkbox').forEach((checkbox) => expect(checkbox).toBeDisabled());
   screen.getAllByRole('radio').forEach((radio) => expect(radio).toBeDisabled());
   expect(screen.getByRole('status')).toHaveTextContent('Eligiendo restaurante');
+  expect(screen.getByRole('button', { name: 'Girando ruleta' })).toHaveTextContent('Girando');
   expect(container.querySelector('.food-roulette__wheel')).toHaveStyle({
     transform: 'rotate(1980deg)',
   });
   act(() => vi.advanceTimersByTime(4200));
+  expect(spinButton).toHaveFocus();
   expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Sushi!');
+  expect(screen.getByRole('status').scrollIntoView).toHaveBeenCalledWith({
+    block: 'nearest',
+    behavior: 'instant',
+  });
+  expect(container.querySelector('[data-winner]')).toHaveTextContent('SushiElegido');
   expect(screen.getByRole('link', { name: /Ver carta/ })).toHaveAttribute(
     'href',
     'https://example.com/Sushi',
   );
   fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta desde el centro' }));
+  const navigationLink = screen.getByRole('link', { name: 'Mi pedido' });
+  navigationLink.focus();
   act(() => vi.advanceTimersByTime(4200));
+  expect(navigationLink).toHaveFocus();
+  expect(screen.getByRole('status').scrollIntoView).toHaveBeenCalledOnce();
   expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Tacos!');
   expect(container.querySelector('.food-roulette__wheel')).toHaveStyle({
     transform: 'rotate(4020deg)',
@@ -83,7 +100,10 @@ it('reveals the result immediately with reduced motion', () => {
 it.each([false, true])(
   'updates both selection modes without delaying a spin (reduced motion: %s)',
   (reduced) => {
-    const transition = vi.fn((update: () => void) => update());
+    const transition = vi.fn((update: () => void) => {
+      update();
+      return { ready: Promise.reject(new DOMException('Replaced transition', 'AbortError')) };
+    });
     Object.defineProperty(document, 'startViewTransition', {
       configurable: true,
       value: transition,
@@ -199,7 +219,7 @@ it('gives cuisines equal segments and narrows the next spin to matching restaura
     'https://example.com/Pizza Sur',
   );
   await user.click(screen.getByRole('checkbox', { name: 'Pizza Sur' }));
-  await user.click(screen.getByRole('button', { name: 'Ver todos los restaurantes' }));
+  await user.click(screen.getByRole('button', { name: /Quitar filtro/ }));
   expect(restaurantMode).toHaveFocus();
   expect(screen.getByRole('checkbox', { name: 'Sushi' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Pizza Norte' })).not.toBeChecked();
@@ -228,7 +248,9 @@ it('preserves independent exclusions across modes and can recover from no select
   await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
   expect(screen.getByRole('status')).toHaveTextContent('Selecciona al menos un tipo de comida');
   expect(screen.getByRole('button', { name: 'Girar ruleta' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Girar ruleta desde el centro' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'Elige opciones para girar la ruleta' }),
+  ).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Cambiar selección' })).toBeEnabled();
   await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
   await user.click(screen.getByRole('button', { name: 'Girar ruleta desde el centro' }));
@@ -289,6 +311,7 @@ it('excludes restaurants from the wheel and draw, clears the result, and allows 
   expect(container.querySelectorAll('.food-roulette__number')).toHaveLength(0);
   expect(screen.getByRole('button', { name: 'Girar ruleta' })).toBeDisabled();
   expect(hub).toBeDisabled();
+  expect(hub).toHaveTextContent('Elige');
   expect(screen.getByRole('button', { name: 'Cambiar selección' })).toBeEnabled();
 
   await user.click(pizza);
@@ -297,4 +320,63 @@ it('excludes restaurants from the wheel and draw, clears the result, and allows 
   hub.focus();
   await user.keyboard(' ');
   expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza!');
+});
+
+it('keeps participant identities across exclusions and filters and restores only the visible selection', async () => {
+  const user = userEvent.setup();
+  const { container } = show(
+    ['Pizza Norte', 'Sushi', 'Pizza Sur'].map((name) => makeRestaurant(name)),
+    true,
+  );
+  const badge = () =>
+    screen
+      .getByRole('checkbox', { name: 'Pizza Sur' })
+      .closest('label')!
+      .querySelector('.food-roulette__badge')!;
+  const color = badge().getAttribute('style');
+  expect(badge()).toHaveTextContent('3');
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza Norte' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Sushi' }));
+  expect(badge()).toHaveTextContent('3');
+  expect(badge().getAttribute('style')).toBe(color);
+  expect(container.querySelector('.food-roulette__number b')).toHaveTextContent('3');
+
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  await user.click(screen.getByRole('button', { name: 'Girar ruleta' }));
+  await user.click(screen.getByRole('button', { name: 'Elegir restaurante de Pizza' }));
+  expect(badge()).toHaveTextContent('3');
+  expect(badge().getAttribute('style')).toBe(color);
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza Sur' }));
+  await user.click(screen.getByRole('button', { name: 'Seleccionar todos' }));
+  expect(screen.getByRole('heading', { name: 'Restaurantes' })).toHaveFocus();
+  screen.getAllByRole('checkbox').forEach((checkbox) => expect(checkbox).toBeChecked());
+  await user.click(screen.getByRole('button', { name: /Quitar filtro/ }));
+  expect(screen.getByRole('checkbox', { name: 'Sushi' })).not.toBeChecked();
+
+  await user.click(screen.getByRole('radio', { name: 'Tipo de comida' }));
+  await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
+  await user.click(screen.getByRole('button', { name: 'Seleccionar todos' }));
+  expect(screen.getByRole('checkbox', { name: 'Pizza' })).toBeChecked();
+  expect(screen.getByRole('heading', { name: 'Tipos de comida' })).toHaveFocus();
+});
+
+it('keeps nine names on the wheel and counter-rotates their labels when revealing the winner', () => {
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  const { container } = show(
+    Array.from({ length: 9 }, (_, index) => makeRestaurant(`Restaurante ${index + 1}`)),
+    true,
+  );
+  expect(container.querySelectorAll('.food-roulette__number small')).toHaveLength(9);
+  const hub = screen.getByRole('button', { name: 'Girar ruleta desde el centro' });
+  hub.focus();
+  fireEvent.click(hub);
+  const rotation = 2140;
+  expect(container.querySelector('.food-roulette__wheel')).toHaveStyle({
+    transform: `rotate(${rotation}deg)`,
+  });
+  expect(container.querySelector('.food-roulette__number > span')).toHaveStyle({
+    transform: `rotate(${-rotation - 20}deg)`,
+  });
+  expect(hub).toHaveFocus();
+  expect(screen.getByRole('status').scrollIntoView).toHaveBeenCalledOnce();
 });
