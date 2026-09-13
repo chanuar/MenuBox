@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useLoaderData, useRevalidator } from 'react-router';
 import { foodAdminApi, foodAuth, foodConfigured, FoodApiError } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
@@ -34,10 +34,11 @@ function AdminSignIn({
 }: {
   onSubmit: (email: string, password: string) => void;
   pending: boolean;
-  error: string;
+  error: Error | null;
 }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const invalidCredentials = error instanceof FoodApiError && error.code === 'FOOD_AUTH_FAILED';
   return (
     <main id="main-content" className="food-admin-auth" tabIndex={-1}>
       <p className="food-kicker">Zona reservada</p>
@@ -63,7 +64,7 @@ function AdminSignIn({
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={Boolean(error)}
+            aria-invalid={invalidCredentials}
             aria-describedby={error ? 'food-sign-in-error' : undefined}
           />
         </label>
@@ -75,13 +76,13 @@ function AdminSignIn({
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            aria-invalid={Boolean(error)}
+            aria-invalid={invalidCredentials}
             aria-describedby={error ? 'food-sign-in-error' : undefined}
           />
         </label>
         {error && (
           <div id="food-sign-in-error" className="food-form-error" role="alert">
-            {error}
+            {error.message}
           </div>
         )}
         <button
@@ -348,24 +349,40 @@ export function Component() {
   const { revalidate, state: revalidationState } = useRevalidator();
   const [tab, setTab] = useState<'current' | 'restaurants' | 'history'>('current');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<Error | null>(null);
   const [notice, setNotice] = useState('');
   const [serviceFee, setServiceFee] = useState('0,00');
   const [serviceFeeError, setServiceFeeError] = useState('');
+  const serviceFeeInput = useRef<HTMLInputElement>(null);
   const busy = pending || revalidationState !== 'idle';
+  const surface = !session ? 'sign-in' : authorized === false ? 'forbidden' : 'dashboard';
+  const currentCycleId = current?.id;
+  const previousView = useRef({ surface, cycleId: currentCycleId });
 
   useEffect(() => foodAuth.onChange(() => revalidate()), [revalidate]);
 
+  useEffect(() => {
+    if (
+      previousView.current.surface !== surface ||
+      (!previousView.current.cycleId && currentCycleId && tab === 'current')
+    )
+      document.getElementById('main-content')?.focus();
+    previousView.current = { surface, cycleId: currentCycleId };
+  }, [surface, currentCycleId, tab]);
+
   async function mutate(action: () => Promise<unknown>, success?: () => void) {
     setPending(true);
-    setError('');
+    setError(null);
+    setNotice('');
     try {
       await action();
       success?.();
       revalidate();
     } catch (mutationError) {
       setError(
-        mutationError instanceof Error ? mutationError.message : 'Ha ocurrido un error inesperado.',
+        mutationError instanceof Error
+          ? mutationError
+          : new Error('Ha ocurrido un error inesperado.'),
       );
     } finally {
       setPending(false);
@@ -393,8 +410,11 @@ export function Component() {
   async function closeCycle(event: FormEvent) {
     event.preventDefault();
     const fee = parseServiceFee(serviceFee);
-    if (fee === null)
-      return setServiceFeeError('Introduce un importe válido con un máximo de dos decimales.');
+    if (fee === null) {
+      setServiceFeeError('Introduce un importe válido con un máximo de dos decimales.');
+      serviceFeeInput.current?.focus();
+      return;
+    }
     if (
       !current ||
       !window.confirm(
@@ -408,6 +428,8 @@ export function Component() {
       () => {
         setServiceFee('0,00');
         setTab('history');
+        setNotice('Pedido cerrado. Ya puedes consultarlo en el historial.');
+        document.getElementById('admin-tab-history')?.focus();
       },
     );
   }
@@ -441,9 +463,15 @@ export function Component() {
             className="food-button food-button--quiet"
             type="button"
             onClick={() => mutate(() => foodAuth.signOut())}
+            disabled={busy}
           >
             Cerrar sesión
           </button>
+          {error && (
+            <p className="food-form-error" role="alert">
+              {error.message}
+            </p>
+          )}
         </main>
       </div>
     );
@@ -498,9 +526,9 @@ export function Component() {
         </div>
         {error && (
           <div className="food-admin-error" role="alert">
-            <span>{error}</span>
-            <button type="button" onClick={() => revalidate()}>
-              Reintentar
+            <span>{error.message}</span>
+            <button type="button" disabled={busy} onClick={() => revalidate()}>
+              Recargar vista
             </button>
           </div>
         )}
@@ -544,6 +572,7 @@ export function Component() {
                     <span className="food-admin-money-input">
                       <span aria-hidden="true">€</span>
                       <input
+                        ref={serviceFeeInput}
                         inputMode="decimal"
                         value={serviceFee}
                         onChange={(event) => {

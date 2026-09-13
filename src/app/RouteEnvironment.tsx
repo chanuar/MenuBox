@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useLocation, useMatches } from 'react-router';
+import FoodHeader from '../products/food/components/FoodHeader';
 
 const SITE_URL = 'https://menubox.chanuar.com';
 
@@ -31,7 +32,7 @@ const META = {
 const CANONICAL_PATH = { food: '/', options: '/options' } as const;
 type Page = keyof typeof META;
 
-export function RouteEnvironment() {
+export function RouteEnvironment({ loading = false }: { loading?: boolean }) {
   const matches = useMatches();
   const location = useLocation();
   const page = [...matches]
@@ -43,11 +44,16 @@ export function RouteEnvironment() {
     name in CANONICAL_PATH ? CANONICAL_PATH[name as keyof typeof CANONICAL_PATH] : null;
   const pageUrl = new URL(canonicalPath ?? location.pathname, SITE_URL).href;
   const previousPath = useRef(location.pathname);
+  const loadingHadFocus = useRef(false);
 
   useEffect(() => {
     document.documentElement.lang = 'es';
     document.body.className = 'food-page';
-  }, []);
+    return () => {
+      if (loading && loadingHadFocus.current)
+        document.getElementById('main-content')?.focus({ preventScroll: true });
+    };
+  }, [loading]);
 
   useEffect(() => {
     const routeChanged = previousPath.current !== location.pathname;
@@ -67,8 +73,8 @@ export function RouteEnvironment() {
       <meta property="og:site_name" content="MenuBox" />
       <meta property="og:url" content={pageUrl} />
       <meta property="og:image" content={`${SITE_URL}/food-og.png`} />
-      <meta property="og:image:width" content="1536" />
-      <meta property="og:image:height" content="1024" />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={meta.title} />
       <meta name="twitter:description" content={meta.description} />
@@ -78,8 +84,28 @@ export function RouteEnvironment() {
       ) : (
         <meta name="robots" content="noindex, nofollow" />
       )}
-      <link rel="icon" type="image/png" href="/food-og.png" />
-      <Outlet />
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+      {loading ? (
+        <div
+          className="food-shell"
+          onFocusCapture={() => {
+            loadingHadFocus.current = true;
+          }}
+        >
+          <FoodHeader compact />
+          <main id="main-content" className="food-state food-state--centered" tabIndex={-1}>
+            <p className="food-kicker">La mesa del equipo</p>
+            <h1>Un momento…</h1>
+            <p role="status">Estamos cargando MenuBox.</p>
+          </main>
+        </div>
+      ) : (
+        <Outlet />
+      )}
     </>
   );
+}
+
+export function HydrateFallback() {
+  return <RouteEnvironment loading />;
 }

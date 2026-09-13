@@ -84,6 +84,18 @@ export function OpeningHours({
       <summary>
         <span>Horario del restaurante</span>
         <strong>Hoy · {formatOpeningPeriods(today.periods)}</strong>
+        <svg
+          className="food-hours__chevron"
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
       </summary>
       <dl>
         {WEEK_DAYS.map((day) => {

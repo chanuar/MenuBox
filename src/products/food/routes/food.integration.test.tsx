@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 
@@ -48,9 +48,17 @@ describe('food route integration without configured Supabase', () => {
   it('shows the friendly no-active-week state', async () => {
     renderRoute(OrderRoute, orderLoader, '/');
     expect(
-      await screen.findByRole('heading', { name: /No hay ningún pedido abierto/ }),
+      await screen.findByRole('heading', { name: 'Estamos preparando la próxima mesa' }),
     ).toBeVisible();
-    expect(screen.getByText(/Falta conectar el proyecto de Supabase/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Explorar restaurantes' })).toHaveAttribute(
+      'href',
+      '/options',
+    );
+    expect(screen.getByRole('link', { name: 'Dejarlo a la suerte' })).toHaveAttribute(
+      'href',
+      '/roulette',
+    );
+    expect(screen.queryByText(/Supabase/)).not.toBeInTheDocument();
   });
 
   it('shows the admin sign-in surface without catalog editing controls', async () => {
@@ -66,13 +74,12 @@ describe('food route integration without configured Supabase', () => {
     expect(screen.getByText('Hamburguesas artesanas en Telde.')).toBeVisible();
     expect(screen.getByText('45 platos disponibles')).toBeVisible();
     expect(screen.getByText('Horario del restaurante')).toBeVisible();
-    expect(screen.getByRole('link', { name: /Ver en Uber Eats/ })).toHaveAttribute(
-      'href',
-      'https://www.ubereats.com/es/store/psm-burger-telde/example',
-    );
+    expect(
+      screen.getByRole('link', { name: /Ver carta en Uber Eats de PSM Burger/ }),
+    ).toHaveAttribute('href', 'https://www.ubereats.com/es/store/psm-burger-telde/example');
   });
 
-  it('replaces imported Uber account instructions with MenuBox copy', async () => {
+  it('omits imported account instructions instead of repeating filler descriptions', async () => {
     const restaurants = await getRestaurantOptions();
     const restaurant = restaurants[0];
     if (!restaurant) throw new Error('Missing restaurant fixture');
@@ -83,10 +90,27 @@ describe('food route integration without configured Supabase', () => {
       },
     ]);
     renderRoute(OptionsRoute, optionsLoader, '/options');
-    expect(
-      await screen.findByText('Descubre sus platos y consulta la carta completa en Uber Eats.'),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'PSM Burger' })).toBeVisible();
+    expect(screen.getByText('45 platos disponibles')).toBeVisible();
     expect(screen.queryByText(/Usa tu cuenta de Uber/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Descubre sus platos/)).not.toBeInTheDocument();
+  });
+
+  it('shows an honest missing-menu state and a graphic fallback when a restaurant photo fails', async () => {
+    const [restaurant] = await getRestaurantOptions();
+    if (!restaurant) throw new Error('Missing restaurant fixture');
+    vi.mocked(getRestaurantOptions).mockResolvedValueOnce([
+      { ...restaurant, sourceUrl: null, description: '' },
+    ]);
+    renderRoute(OptionsRoute, optionsLoader, '/options');
+    expect(await screen.findByRole('heading', { name: 'PSM Burger' })).toBeVisible();
+    expect(screen.getByText('Carta online no disponible')).toBeVisible();
+    expect(screen.queryByRole('link', { name: /Ver carta/ })).not.toBeInTheDocument();
+    const photo = document.querySelector('.food-option-card img');
+    if (!photo) throw new Error('Missing restaurant photo');
+    fireEvent.error(photo);
+    expect(document.querySelector('.food-option-card img')).not.toBeInTheDocument();
+    expect(document.querySelector('.food-option-card__image--placeholder svg')).toBeVisible();
   });
 
   it('loads restaurant options and an unauthenticated admin session at route boundaries', async () => {

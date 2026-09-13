@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { useLoaderData } from 'react-router';
-import { foodConfigured, getRestaurantOptions } from '../api/foodApi';
+import { Link, useLoaderData } from 'react-router';
+import { getRestaurantOptions } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
+import FoodMark from '../components/FoodMark';
 import { OpeningHours } from '../components/OpeningHours';
 import type { Restaurant } from '../model/types';
 
 function restaurantDescription(description: string) {
   return !description.trim() || /^usa tu cuenta de uber\b/i.test(description.trim())
-    ? 'Descubre sus platos y consulta la carta completa en Uber Eats.'
-    : description;
+    ? ''
+    : description.trim();
 }
 
 export const loader = () => getRestaurantOptions();
@@ -22,7 +23,7 @@ function RestaurantImage({ restaurant }: { restaurant: Restaurant }) {
         className="food-option-card__image food-option-card__image--placeholder"
         aria-hidden="true"
       >
-        {restaurant.name.slice(0, 1)}
+        <FoodMark />
       </div>
     );
   }
@@ -46,22 +47,26 @@ export function Component() {
       <FoodHeader />
       <main id="main-content" className="food-options" tabIndex={-1}>
         <header className="food-options__intro">
-          <p className="food-kicker">Todas las opciones</p>
-          <h1>¿Dónde pedimos esta semana?</h1>
-          <p>
-            Conoce los restaurantes del equipo. El pedido de la semana se prepara en MenuBox; aquí
-            puedes consultar los horarios y las cartas originales en Uber Eats.
-          </p>
+          <div>
+            <p className="food-kicker">Las cartas del equipo</p>
+            <h1>Un sitio para cada antojo.</h1>
+          </div>
+          <div className="food-options__aside">
+            <p>Explora restaurantes, consulta sus horarios y encuentra la próxima mesa.</p>
+            <Link className="food-button food-button--quiet" to="/roulette">
+              Que decida la suerte <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
         </header>
 
         {restaurants.length === 0 && (
           <section className="food-state food-state--inline">
+            <FoodMark className="food-state__mark" />
             <h2>Todavía no hay restaurantes disponibles</h2>
-            <p>
-              {foodConfigured
-                ? 'Cuando se importe la primera carta, aparecerá aquí.'
-                : 'Falta conectar el proyecto de Supabase para mostrar las opciones.'}
-            </p>
+            <p>Estamos preparando las próximas cartas para compartir mesa.</p>
+            <Link className="food-button food-button--quiet" to="/">
+              Ir a mi pedido
+            </Link>
           </section>
         )}
         {restaurants.length > 0 && (
@@ -74,24 +79,32 @@ export function Component() {
                 <RestaurantImage restaurant={restaurant} />
                 <div className="food-option-card__body">
                   <div>
-                    <p className="food-option-card__count">
-                      {restaurant.availableItems} platos disponibles
-                    </p>
                     <h3>{restaurant.name}</h3>
-                    <p className="food-option-card__description">
-                      {restaurantDescription(restaurant.description)}
+                    {restaurantDescription(restaurant.description) && (
+                      <p className="food-option-card__description">
+                        {restaurantDescription(restaurant.description)}
+                      </p>
+                    )}
+                    <p className="food-option-card__count">
+                      {restaurant.availableItems}{' '}
+                      {restaurant.availableItems === 1 ? 'plato disponible' : 'platos disponibles'}
                     </p>
                     <OpeningHours openingHours={restaurant.openingHours} />
                   </div>
-                  <a
-                    className="food-option-card__link"
-                    href={restaurant.sourceUrl ?? undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Ver en Uber Eats <span aria-hidden="true">↗</span>
-                    <span className="sr-only"> (se abre en una pestaña nueva)</span>
-                  </a>
+                  {restaurant.sourceUrl ? (
+                    <a
+                      className="food-option-card__link"
+                      href={restaurant.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Ver carta en Uber Eats <span className="sr-only">de {restaurant.name}</span>{' '}
+                      <span aria-hidden="true">↗</span>
+                      <span className="sr-only"> (se abre en una pestaña nueva)</span>
+                    </a>
+                  ) : (
+                    <p className="food-option-card__unavailable">Carta online no disponible</p>
+                  )}
                 </div>
               </article>
             ))}

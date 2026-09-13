@@ -1,10 +1,11 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { NotFound } from './NotFound';
-import { RouteEnvironment } from './RouteEnvironment';
+import { HydrateFallback, RouteEnvironment } from './RouteEnvironment';
 
 export const routes: RouteObject[] = [
   {
     Component: RouteEnvironment,
+    HydrateFallback,
     children: [
       {
         lazy: () => import('../products/food/routes/FoodLayout'),

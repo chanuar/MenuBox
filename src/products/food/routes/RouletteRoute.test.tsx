@@ -86,6 +86,38 @@ it('selects the only restaurant immediately', () => {
   expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza!');
 });
 
+it('moves keyboard focus to selection before the wheel and keeps the full option names accessible', async () => {
+  const user = userEvent.setup();
+  const { container } = show();
+  const changeSelection = screen.getByRole('button', { name: 'Cambiar selección' });
+  expect(container.querySelector('.food-roulette__number small')).toHaveTextContent('Pizza');
+  changeSelection.focus();
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('heading', { name: 'Restaurantes' })).toHaveFocus();
+  await user.tab();
+  expect(screen.getByRole('checkbox', { name: 'Pizza' })).toHaveFocus();
+  await user.keyboard(' ');
+  expect(screen.getByRole('checkbox', { name: 'Pizza' })).not.toBeChecked();
+});
+
+it('uses the winning restaurant photo and does not invent a missing menu link', () => {
+  const restaurant = {
+    ...restaurants[0]!,
+    imageUrl: 'https://example.com/pizza.jpg',
+    sourceUrl: null,
+  };
+  const { container } = show([restaurant]);
+  fireEvent.click(screen.getByRole('button', { name: 'Girar ruleta' }));
+  expect(screen.getByRole('heading', { name: '¡Hoy toca Pizza!' })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('Carta online no disponible');
+  expect(screen.queryByRole('link', { name: /Ver carta/ })).not.toBeInTheDocument();
+  const photo = container.querySelector('.food-roulette__winner-image');
+  expect(photo).toHaveAttribute('src', restaurant.imageUrl);
+  fireEvent.error(photo!);
+  expect(photo).not.toBeVisible();
+  expect(screen.getByRole('button', { name: 'Volver a girar' })).toBeEnabled();
+});
+
 it('groups multiple cuisines without duplicate types and keeps unclassified restaurants', () => {
   const pizzaKebab = makeRestaurant('Pizzería KEBAB');
   const burger = makeRestaurant("McDonald's");
@@ -164,7 +196,9 @@ it('preserves independent exclusions across modes and can recover from no select
   await user.click(screen.getByRole('checkbox', { name: 'Sushi' }));
   await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
   expect(screen.getByRole('status')).toHaveTextContent('Selecciona al menos un tipo de comida');
-  screen.getAllByRole('button').forEach((button) => expect(button).toBeDisabled());
+  expect(screen.getByRole('button', { name: 'Girar ruleta' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Girar ruleta desde el centro' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Cambiar selección' })).toBeEnabled();
   await user.click(screen.getByRole('checkbox', { name: 'Pizza' }));
   await user.click(screen.getByRole('button', { name: 'Girar ruleta desde el centro' }));
   expect(screen.getByRole('status')).toHaveTextContent('¡Hoy toca Pizza!');
@@ -222,7 +256,9 @@ it('excludes restaurants from the wheel and draw, clears the result, and allows 
   await user.click(screen.getByRole('checkbox', { name: 'Tacos' }));
   expect(screen.getByRole('status')).toHaveTextContent('Selecciona al menos un restaurante');
   expect(container.querySelectorAll('.food-roulette__number')).toHaveLength(0);
-  screen.getAllByRole('button').forEach((button) => expect(button).toBeDisabled());
+  expect(screen.getByRole('button', { name: 'Girar ruleta' })).toBeDisabled();
+  expect(hub).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Cambiar selección' })).toBeEnabled();
 
   await user.click(pizza);
   expect(pizza).toBeChecked();

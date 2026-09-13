@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const rpc = vi.hoisted(() => vi.fn());
+const { rpc, signInWithPassword } = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  signInWithPassword: vi.fn(),
+}));
 
 vi.mock('../../../shared/config/supabase', () => ({
   supabaseEnvironment: {
@@ -16,16 +19,37 @@ vi.mock('@supabase/supabase-js', () => ({
     auth: {
       getSession: vi.fn(),
       onAuthStateChange: vi.fn(),
-      signInWithPassword: vi.fn(),
+      signInWithPassword,
       signOut: vi.fn(),
     },
   }),
 }));
 
-import { foodAdminApi, getOrder } from './foodApi';
+import { foodAdminApi, foodAuth, getOrder } from './foodApi';
 
 describe('food API normalization', () => {
-  beforeEach(() => rpc.mockReset());
+  beforeEach(() => {
+    rpc.mockReset();
+    signInWithPassword.mockReset();
+  });
+
+  it('only calls credentials invalid when the auth service identifies that failure', async () => {
+    signInWithPassword.mockResolvedValueOnce({
+      data: { session: null },
+      error: { code: 'invalid_credentials', message: 'Invalid login credentials' },
+    });
+    await expect(foodAuth.signIn('admin@example.com', 'wrong')).rejects.toMatchObject({
+      code: 'FOOD_AUTH_FAILED',
+      message: 'El correo o la contraseña no son correctos.',
+    });
+    signInWithPassword.mockResolvedValueOnce({
+      data: { session: null },
+      error: { message: 'Failed to fetch' },
+    });
+    await expect(foodAuth.signIn('admin@example.com', 'secret')).rejects.toMatchObject({
+      message: 'No hemos podido conectar con el servicio de pedidos. Inténtalo de nuevo.',
+    });
+  });
 
   it('keeps snake_case admin payloads out of the UI model', async () => {
     rpc.mockResolvedValue({

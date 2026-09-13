@@ -324,12 +324,13 @@ export const foodAuth = {
         'El servicio de pedidos aún no está configurado.',
       );
     const { data, error } = await foodClient.auth.signInWithPassword({ email, password });
-    if (error)
+    if (error?.code === 'invalid_credentials')
       throw new FoodApiError(
         'FOOD_AUTH_FAILED',
         'El correo o la contraseña no son correctos.',
         error,
       );
+    if (error) throw asFoodError(error);
     return data.session;
   },
   async signOut() {

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLoaderData } from 'react-router';
-import { foodConfigured, getRestaurantOptions } from '../api/foodApi';
+import { getRestaurantOptions } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
+import FoodMark from '../components/FoodMark';
 import { getFoodTypes } from '../model/foodTypes';
 import type { Restaurant } from '../model/types';
 
@@ -30,6 +31,9 @@ export function Component() {
   const [pending, setPending] = useState<RouletteOption | null>(null);
   const [winner, setWinner] = useState<RouletteOption | null>(null);
   const restaurantMode = useRef<HTMLInputElement>(null);
+  const selectionHeading = useRef<HTMLHeadingElement>(null);
+  const winningRestaurant =
+    mode === 'restaurant' ? allRestaurants.find(({ id }) => id === winner?.id) : undefined;
   const slice = options.length ? 360 / options.length : 0;
   const spinDisabled = pending !== null || options.length === 0;
 
@@ -99,13 +103,12 @@ export function Component() {
         </header>
         {allRestaurants.length === 0 ? (
           <section className="food-state food-state--inline">
+            <FoodMark className="food-state__mark" />
             <h2>Todavía no hay restaurantes disponibles</h2>
-            <p>
-              {foodConfigured
-                ? 'Cuando se importe la primera carta, podrás girar la ruleta.'
-                : 'Falta conectar el proyecto de Supabase para mostrar las opciones.'}
-            </p>
-            <Link to="/options">Ver restaurantes</Link>
+            <p>Estamos preparando las próximas cartas. Pronto habrá más de dónde elegir.</p>
+            <Link className="food-button food-button--quiet" to="/">
+              Ir a mi pedido
+            </Link>
           </section>
         ) : (
           <>
@@ -173,6 +176,15 @@ export function Component() {
             )}
             <div className="food-roulette__layout">
               <div className="food-roulette__stage">
+                <button
+                  className="food-button food-button--quiet food-roulette__change-selection"
+                  type="button"
+                  disabled={pending !== null}
+                  aria-controls="roulette-restaurants"
+                  onClick={() => selectionHeading.current?.focus()}
+                >
+                  Cambiar selección <span aria-hidden="true">↓</span>
+                </button>
                 <div className="food-roulette__wheel-wrap">
                   <div className="food-roulette__pointer" aria-hidden="true" />
                   <div
@@ -188,11 +200,14 @@ export function Component() {
                   >
                     {options.map((option, index) => (
                       <span
-                        className="food-roulette__number"
+                        className={`food-roulette__number${options.length <= 8 ? ' food-roulette__number--named' : ''}`}
                         key={option.id}
                         style={{ transform: `rotate(${(index + 0.5) * slice}deg)` }}
                       >
-                        <span>{index + 1}</span>
+                        <span>
+                          <b>{index + 1}</b>
+                          {options.length <= 8 && <small>{option.name}</small>}
+                        </span>
                       </span>
                     ))}
                   </div>
@@ -219,14 +234,6 @@ export function Component() {
                     <span>Girar</span>
                   </button>
                 </div>
-                <button
-                  className="food-button food-roulette__spin"
-                  type="button"
-                  disabled={spinDisabled}
-                  onClick={spin}
-                >
-                  {pending ? 'Girando…' : winner ? 'Volver a girar' : 'Girar ruleta'}
-                </button>
                 <div
                   className="food-roulette__result"
                   data-state={winner ? 'winner' : pending ? 'spinning' : 'idle'}
@@ -238,14 +245,40 @@ export function Component() {
                     <p>Eligiendo {optionName}…</p>
                   ) : winner ? (
                     <>
-                      <p>
+                      {winningRestaurant?.imageUrl && (
+                        <img
+                          className="food-roulette__winner-image"
+                          key={winningRestaurant.imageUrl}
+                          src={winningRestaurant.imageUrl}
+                          alt=""
+                          onError={(event) => {
+                            event.currentTarget.hidden = true;
+                          }}
+                        />
+                      )}
+                      <h2 className="food-roulette__winner-name">
                         ¡Hoy toca <strong>{winner.name}</strong>!
-                      </p>
-                      {winner.sourceUrl && (
-                        <a href={winner.sourceUrl} target="_blank" rel="noreferrer">
+                      </h2>
+                      {mode === 'food' ? (
+                        <button
+                          className="food-button"
+                          type="button"
+                          onClick={() => filterRestaurants(winner.id)}
+                        >
+                          Elegir restaurante de {winner.name}
+                        </button>
+                      ) : winner.sourceUrl ? (
+                        <a
+                          className="food-button"
+                          href={winner.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           Ver carta en Uber Eats{' '}
                           <span className="sr-only">(se abre en una pestaña nueva)</span> ↗
                         </a>
+                      ) : (
+                        <p>Carta online no disponible</p>
                       )}
                     </>
                   ) : (
@@ -258,20 +291,19 @@ export function Component() {
                     </p>
                   )}
                 </div>
-                {mode === 'food' && winner && (
-                  <button
-                    className="food-button food-button--quiet"
-                    type="button"
-                    onClick={() => filterRestaurants(winner.id)}
-                  >
-                    Elegir restaurante de {winner.name}
-                  </button>
-                )}
+                <button
+                  className={`food-button food-roulette__spin${winner ? ' food-button--quiet' : ''}`}
+                  type="button"
+                  disabled={spinDisabled}
+                  onClick={spin}
+                >
+                  {pending ? 'Girando…' : winner ? 'Volver a girar' : 'Girar ruleta'}
+                </button>
               </div>
               <section className="food-roulette__selection" aria-labelledby="roulette-restaurants">
                 <div className="food-roulette__selection-heading">
                   <div>
-                    <h2 id="roulette-restaurants">
+                    <h2 id="roulette-restaurants" ref={selectionHeading} tabIndex={-1}>
                       {mode === 'food' ? 'Tipos de comida' : 'Restaurantes'}
                     </h2>
                   </div>
