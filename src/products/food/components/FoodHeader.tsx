@@ -30,6 +30,7 @@ export default function FoodHeader({ compact = false }: { compact?: boolean }) {
           </NavLink>
           <NavLink to="/options">Restaurantes</NavLink>
           <NavLink to="/roulette">Ruleta</NavLink>
+          <NavLink to="/demo">Demo</NavLink>
         </nav>
         <NavLink className="food-header__admin" to="/admin">
           Administración

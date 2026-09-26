@@ -4,6 +4,7 @@ import type {
   ActiveMenu,
   AdminCycle,
   FoodOrder,
+  MenuItem,
   OpeningDay,
   OrderItemPayload,
   Restaurant,
@@ -241,6 +242,50 @@ export async function getRestaurantOptions(): Promise<Restaurant[]> {
   };
   restaurantOptions = request;
   return request.data;
+}
+
+export async function getRestaurantMenu(restaurantId: string): Promise<MenuItem[]> {
+  const data = await rpc<unknown>('food_restaurant_menu', { p_restaurant_id: restaurantId });
+  if (!Array.isArray(data))
+    throw new FoodApiError('FOOD_INVALID_RESPONSE', 'No hemos podido leer esta carta.');
+  return data.map((item: unknown) => {
+    if (
+      !item ||
+      typeof item !== 'object' ||
+      !('id' in item) ||
+      typeof item.id !== 'string' ||
+      !('name' in item) ||
+      typeof item.name !== 'string' ||
+      !('price_cents' in item) ||
+      !Number.isSafeInteger(item.price_cents) ||
+      Number(item.price_cents) < 0
+    ) {
+      throw new FoodApiError(
+        'FOOD_INVALID_RESPONSE',
+        'La carta contiene un plato que no podemos mostrar.',
+      );
+    }
+    return normalizeItem({
+      id: item.id,
+      name: item.name,
+      restaurant_id: restaurantId,
+      price_cents: Number(item.price_cents),
+      category: 'category' in item && typeof item.category === 'string' ? item.category : null,
+      description:
+        'description' in item && typeof item.description === 'string' ? item.description : null,
+      currency:
+        'currency' in item && typeof item.currency === 'string' && /^[A-Z]{3}$/.test(item.currency)
+          ? item.currency
+          : 'EUR',
+      image_url:
+        'image_url' in item &&
+        typeof item.image_url === 'string' &&
+        /^https:\/\//.test(item.image_url)
+          ? item.image_url
+          : null,
+      available: true,
+    });
+  });
 }
 
 export async function submitOrder(input: {

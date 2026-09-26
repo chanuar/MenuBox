@@ -26,6 +26,7 @@ describe('route surfaces', () => {
     { path: '/options', page: 'options', title: 'Restaurantes — MenuBox', indexed: true },
     { path: '/admin', page: 'admin', title: 'Administración — MenuBox', indexed: false },
     { path: '/roulette', page: 'roulette', title: 'Ruleta — MenuBox', indexed: false },
+    { path: '/demo', page: 'demo', title: 'Prueba un pedido — MenuBox', indexed: false },
   ])(
     'shows accessible initial loading with matching metadata at $path',
     async ({ path, page, title, indexed }) => {

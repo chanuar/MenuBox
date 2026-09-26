@@ -10,6 +10,7 @@ export default defineConfig({
         main: resolve(process.cwd(), 'index.html'),
         options: resolve(process.cwd(), 'options/index.html'),
         roulette: resolve(process.cwd(), 'roulette/index.html'),
+        demo: resolve(process.cwd(), 'demo/index.html'),
         admin: resolve(process.cwd(), 'admin/index.html'),
         notFound: resolve(process.cwd(), '404.html'),
       },

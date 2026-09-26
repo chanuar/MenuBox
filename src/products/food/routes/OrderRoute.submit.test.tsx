@@ -17,6 +17,7 @@ vi.mock('../api/foodApi', async (importOriginal) => ({
 }));
 
 import { Component, loader } from './OrderRoute';
+import { Component as Demo } from './DemoRoute';
 import { FoodApiError } from '../api/foodApi';
 import { saveCredential } from '../model/storage';
 
@@ -70,6 +71,7 @@ function renderOrder() {
   const router = createMemoryRouter(
     [
       { path: '/', Component, loader },
+      { path: '/demo', Component: Demo },
       { path: '/options', element: <Link to="/">Volver al pedido</Link> },
     ],
     {
@@ -114,6 +116,26 @@ describe('successful order recovery', () => {
     apiMocks.getActiveMenu.mockResolvedValue(menu);
     apiMocks.submitOrder.mockResolvedValue({ orderId: 'order-1', token: 'token-1' });
     apiMocks.updateOrder.mockResolvedValue(confirmedOrder);
+  });
+
+  it('keeps a real draft intact when visiting and confirming the demo', async () => {
+    const user = userEvent.setup();
+    const router = renderOrder();
+    await screen.findByRole('heading', { name: 'La Cocina' });
+    await user.click(screen.getByRole('button', { name: 'Añadir una unidad de Tortilla' }));
+    await user.type(screen.getByRole('textbox', { name: /Tu nombre/ }), 'Pedido real');
+    await act(() => router.navigate('/demo'));
+    await user.click(screen.getByRole('button', { name: 'Añadir una unidad de La clásica' }));
+    await user.type(screen.getByRole('textbox', { name: /Tu nombre/ }), 'Ejemplo');
+    await user.click(screen.getByRole('button', { name: 'Confirmar pedido de ejemplo' }));
+    await act(() => router.navigate('/'));
+    expect(screen.getByRole('textbox', { name: /Tu nombre/ })).toHaveValue('Pedido real');
+    expect(
+      within(screen.getByRole('article', { name: 'Tortilla' })).getByRole('button', {
+        name: 'Quitar una unidad de Tortilla',
+      }),
+    ).toBeEnabled();
+    expect(apiMocks.submitOrder).not.toHaveBeenCalled();
   });
 
   it.each([

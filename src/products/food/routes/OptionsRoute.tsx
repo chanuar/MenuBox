@@ -4,6 +4,7 @@ import { getRestaurantOptions } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
 import FoodMark from '../components/FoodMark';
 import { OpeningHours } from '../components/OpeningHours';
+import { RestaurantMenu } from '../components/RestaurantMenu';
 import type { Restaurant } from '../model/types';
 
 function restaurantDescription(description: string) {
@@ -41,6 +42,7 @@ function RestaurantImage({ restaurant }: { restaurant: Restaurant }) {
 
 export function Component() {
   const restaurants = useLoaderData() as Restaurant[];
+  const [selected, setSelected] = useState<Restaurant | null>(null);
 
   return (
     <div className="food-shell">
@@ -91,6 +93,14 @@ export function Component() {
                     </p>
                     <OpeningHours openingHours={restaurant.openingHours} />
                   </div>
+                  <button
+                    type="button"
+                    className="food-button food-button--quiet"
+                    onClick={() => setSelected(restaurant)}
+                    aria-label={`Explorar carta de ${restaurant.name}`}
+                  >
+                    Explorar carta <span aria-hidden="true">↗</span>
+                  </button>
                   {restaurant.sourceUrl ? (
                     <a
                       className="food-option-card__link"
@@ -111,6 +121,9 @@ export function Component() {
           </section>
         )}
       </main>
+      {selected && (
+        <RestaurantMenu key={selected.id} restaurant={selected} onClose={() => setSelected(null)} />
+      )}
     </div>
   );
 }

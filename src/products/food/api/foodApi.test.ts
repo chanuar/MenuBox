@@ -25,7 +25,13 @@ vi.mock('@supabase/supabase-js', () => ({
   }),
 }));
 
-import { foodAdminApi, foodAuth, getOrder, getRestaurantOptions } from './foodApi';
+import {
+  foodAdminApi,
+  foodAuth,
+  getOrder,
+  getRestaurantOptions,
+  getRestaurantMenu,
+} from './foodApi';
 
 afterEach(() => vi.useRealTimers());
 
@@ -124,5 +130,34 @@ describe('food API normalization', () => {
     rpc.mockResolvedValueOnce({ data: [{ ...restaurant, opening_hours: hours }], error: null });
     await expect(getRestaurantOptions()).resolves.toMatchObject([{ openingHours: hours }]);
     expect(rpc).toHaveBeenCalledTimes(5);
+  });
+});
+
+it('validates the public menu and normalizes its presentation fields', async () => {
+  rpc.mockResolvedValueOnce({
+    data: [{ id: 'dish', name: 'Tortilla', price_cents: 700, image_url: 'javascript:bad' }],
+    error: null,
+  });
+  await expect(getRestaurantMenu('restaurant')).resolves.toMatchObject([
+    {
+      id: 'dish',
+      name: 'Tortilla',
+      restaurantId: 'restaurant',
+      priceCents: 700,
+      currency: 'EUR',
+      imageUrl: null,
+    },
+  ]);
+  expect(rpc).toHaveBeenLastCalledWith('food_restaurant_menu', { p_restaurant_id: 'restaurant' });
+  rpc.mockResolvedValueOnce({
+    data: [{ id: 'dish', name: 'Bad price', price_cents: -1 }],
+    error: null,
+  });
+  await expect(getRestaurantMenu('restaurant')).rejects.toMatchObject({
+    code: 'FOOD_INVALID_RESPONSE',
+  });
+  rpc.mockResolvedValueOnce({ data: {}, error: null });
+  await expect(getRestaurantMenu('restaurant')).rejects.toMatchObject({
+    code: 'FOOD_INVALID_RESPONSE',
   });
 });

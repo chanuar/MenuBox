@@ -6,7 +6,11 @@ order. The interface is currently available in Spanish.
 
 ## Features
 
-- Browse available restaurants and their weekly opening hours.
+- Browse available restaurants, opening hours, and complete menus with photos,
+  prices, search, and category filters even without an active order cycle.
+- Try a complete sample order at `/demo`, including edits and a confirmation
+  ticket. The demo uses in-memory sample data and never writes orders, tokens,
+  or real drafts.
 - Build an order from the active restaurant menu, including quantities and
   per-item or general notes.
 - Recover and edit a submitted order from the same browser while its weekly
@@ -21,7 +25,7 @@ order. The interface is currently available in Spanish.
 
 MenuBox stores its application data in the Supabase `food` schema and exposes
 purpose-built PostgreSQL functions to the browser. Anonymous users can read the
-active menu and manage only an order for which they hold the edit token.
+restaurant directory, available menus, and manage only an order for which they hold the edit token.
 Administrative functions require both an authenticated Supabase session and an
 entry in the `food.food_admins` allowlist.
 
@@ -30,7 +34,9 @@ belong exclusively to the separate catalog scraper and must never be added to
 this repository or exposed to frontend code.
 
 Database migrations and pgTAP security tests are versioned in this repository
-alongside the web application.
+alongside the web application. Deploy `20260926000000_public_restaurant_menu.sql`
+before the menu-browsing UI; it grants anonymous and authenticated visitors
+read-only presentation fields for available, publicly listed restaurants.
 
 ## Tech stack
 

@@ -4,6 +4,7 @@ import { Link, useBlocker, useLoaderData } from 'react-router';
 import { FoodApiError, getActiveMenu, getOrder, submitOrder, updateOrder } from '../api/foodApi';
 import FoodHeader from '../components/FoodHeader';
 import FoodMark from '../components/FoodMark';
+import { MenuItemCard, ItemDetailModal, QuantityControl } from '../components/MenuItems';
 import { OpeningHours } from '../components/OpeningHours';
 import { forgetCredential, readLastCredential, saveCredential } from '../model/storage';
 import {
@@ -13,7 +14,6 @@ import {
   cartTotal,
   formatEuros,
   formatSpanishDate,
-  isBeverage,
   menuCategoryPriority,
   normalizeSearch,
   orderToCart,
@@ -23,7 +23,6 @@ import {
 import { initialOrderWorkflow, orderWorkflowReducer } from '../model/orderState';
 import type {
   Cart,
-  CartEntry,
   Credential,
   FoodOrder,
   MenuItem,
@@ -93,7 +92,10 @@ function EmptyWeek() {
       <h1>Estamos preparando la próxima mesa</h1>
       <p>No hay ningún pedido abierto. Mientras el equipo elige, encuentra tu próximo favorito.</p>
       <div className="food-state__actions">
-        <Link className="food-button" to="/options">
+        <Link className="food-button" to="/demo">
+          Probar un pedido de ejemplo
+        </Link>
+        <Link className="food-button food-button--quiet" to="/options">
           Explorar restaurantes
         </Link>
         <Link className="food-button food-button--quiet" to="/roulette">
@@ -136,222 +138,6 @@ function EmptyWeek() {
   );
 }
 
-function MenuItemImage({
-  item,
-  className,
-  onError,
-}: {
-  item: MenuItem;
-  className: string;
-  onError: () => void;
-}) {
-  return (
-    <img
-      className={`${className}${isBeverage(item.category) ? ' food-item-image--beverage' : ''}`}
-      src={item.imageUrl ?? undefined}
-      alt=""
-      loading="lazy"
-      onError={onError}
-    />
-  );
-}
-
-function QuantityControl({
-  item,
-  quantity,
-  onQuantity,
-}: {
-  item: MenuItem;
-  quantity: number;
-  onQuantity: (itemId: string, quantity: number) => void;
-}) {
-  const addButtonRef = useRef<HTMLButtonElement>(null);
-  return (
-    <div className="food-quantity" role="group" aria-label={`Cantidad de ${item.name}`}>
-      {quantity > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              onQuantity(item.id, quantity - 1);
-              if (quantity === 1) window.requestAnimationFrame(() => addButtonRef.current?.focus());
-            }}
-            aria-label={`Quitar una unidad de ${item.name}`}
-          >
-            −
-          </button>
-          <span className="food-quantity__value">{quantity}</span>
-        </>
-      )}
-      <button
-        ref={addButtonRef}
-        className={quantity ? undefined : 'food-add-button'}
-        type="button"
-        onClick={() => onQuantity(item.id, quantity + 1)}
-        disabled={quantity >= MAX_QUANTITY}
-        aria-label={`Añadir una unidad de ${item.name}`}
-      >
-        {quantity ? '+' : 'Añadir +'}
-      </button>
-    </div>
-  );
-}
-
-function MenuItemCard({
-  item,
-  entry,
-  onQuantity,
-  onNote,
-  onOpen,
-}: {
-  item: MenuItem;
-  entry?: CartEntry;
-  onQuantity: (itemId: string, quantity: number) => void;
-  onNote: (itemId: string, note: string) => void;
-  onOpen: (item: MenuItem, event: MouseEvent<HTMLElement>) => void;
-}) {
-  const quantity = entry?.quantity ?? 0;
-  const [imageFailed, setImageFailed] = useState(false);
-  const [noteInitiallyOpen] = useState(Boolean(entry?.note));
-  const showImage = Boolean(item.imageUrl) && !isBeverage(item.category) && !imageFailed;
-  return (
-    <article
-      className={`food-menu-card${showImage ? '' : ' food-menu-card--text'}${quantity ? ' food-menu-card--selected' : ''}`}
-      aria-labelledby={`food-menu-item-${item.id}`}
-    >
-      {showImage && (
-        <button
-          className="food-menu-card__image-button"
-          type="button"
-          onClick={(event) => onOpen(item, event)}
-          aria-label={`Ver foto y detalles de ${item.name}`}
-        >
-          <MenuItemImage
-            item={item}
-            className="food-menu-card__image"
-            onError={() => setImageFailed(true)}
-          />
-        </button>
-      )}
-      <div className="food-menu-card__body">
-        <div className="food-menu-card__heading">
-          <h4 id={`food-menu-item-${item.id}`}>{item.name}</h4>
-          <strong>{formatEuros(item.priceCents, item.currency)}</strong>
-        </div>
-        {item.description && <p className="food-menu-card__description">{item.description}</p>}
-        <button
-          id={`food-menu-details-${item.id}`}
-          className="food-menu-card__details"
-          type="button"
-          aria-label={`Ver detalles de ${item.name}`}
-          onClick={(event) => onOpen(item, event)}
-        >
-          Ver detalles
-        </button>
-        <QuantityControl item={item} quantity={quantity} onQuantity={onQuantity} />
-        {quantity > 0 && (
-          <details className="food-note-details" open={noteInitiallyOpen}>
-            <summary>
-              Nota para el plato <span className="sr-only">{item.name}</span>
-            </summary>
-            <label className="food-field food-field--item-note">
-              <span>
-                Nota para {item.name} <small>{entry?.note.length ?? 0}/240</small>
-              </span>
-              <input
-                value={entry?.note ?? ''}
-                maxLength={240}
-                onChange={(event) => onNote(item.id, event.target.value)}
-                placeholder="Sin cebolla, salsa aparte…"
-              />
-            </label>
-          </details>
-        )}
-      </div>
-    </article>
-  );
-}
-
-function ItemDetailModal({
-  item,
-  entry,
-  onQuantity,
-  onClose,
-}: {
-  item: MenuItem;
-  entry?: CartEntry;
-  onQuantity: (itemId: string, quantity: number) => void;
-  onClose: () => void;
-}) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const [imageFailed, setImageFailed] = useState(false);
-  const quantity = entry?.quantity ?? 0;
-
-  useEffect(() => {
-    const dialog = dialogRef.current!;
-    dialog.showModal();
-    closeButtonRef.current?.focus();
-    return () => dialog.close();
-  }, []);
-
-  function close() {
-    dialogRef.current?.close();
-    onClose();
-  }
-
-  return (
-    <dialog
-      ref={dialogRef}
-      className="food-item-modal"
-      aria-labelledby={`food-item-title-${item.id}`}
-      aria-describedby={`food-item-description-${item.id}`}
-      onCancel={(event) => {
-        event.preventDefault();
-        close();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close();
-      }}
-    >
-      <section className="food-item-modal__panel">
-        <button
-          ref={closeButtonRef}
-          className="food-item-modal__close"
-          type="button"
-          onClick={close}
-          aria-label="Cerrar detalles"
-        >
-          <span aria-hidden="true">×</span>
-        </button>
-        {item.imageUrl && !imageFailed && (
-          <div className="food-item-modal__media">
-            <MenuItemImage
-              item={item}
-              className="food-item-modal__image"
-              onError={() => setImageFailed(true)}
-            />
-          </div>
-        )}
-        <div className="food-item-modal__content">
-          <p className="food-menu-card__category">{item.category}</p>
-          <h2 id={`food-item-title-${item.id}`}>{item.name}</h2>
-          <strong className="food-item-modal__price">
-            {formatEuros(item.priceCents, item.currency)}
-          </strong>
-          <p id={`food-item-description-${item.id}`} className="food-item-modal__description">
-            {item.description || 'Este plato no tiene descripción disponible.'}
-          </p>
-          <div className="food-item-modal__actions">
-            <span>{quantity ? `${quantity} en tu pedido` : 'Añádelo a tu pedido'}</span>
-            <QuantityControl item={item} quantity={quantity} onQuantity={onQuantity} />
-          </div>
-        </div>
-      </section>
-    </dialog>
-  );
-}
-
 function OrderConfirmation({
   order,
   restaurant,
@@ -359,6 +145,7 @@ function OrderConfirmation({
   onEdit,
   onForget,
   warning = '',
+  demo = false,
 }: {
   order: FoodOrder;
   restaurant: Restaurant | null;
@@ -366,26 +153,36 @@ function OrderConfirmation({
   onEdit: () => void;
   onForget: () => void;
   warning?: string;
+  demo?: boolean;
 }) {
   const count = order.items.reduce((sum, item) => sum + item.quantity, 0);
   return (
     <main id="main-content" className="food-confirmation" tabIndex={-1}>
+      {demo && <DemoNotice />}
       <div className="food-confirmation__status" aria-hidden="true">
         ✓
       </div>
-      <p className="food-kicker">Pedido guardado</p>
+      <p className="food-kicker">{demo ? 'Demostración completada' : 'Pedido guardado'}</p>
       <h1>Apuntado, {order.displayName}.</h1>
       <p className="food-confirmation__lead">
-        {order.cycleStatus === 'closed'
-          ? `El pedido de ${restaurant?.name ?? 'esta semana'} ya está cerrado. Esta es tu confirmación.`
-          : `Tu pedido para ${restaurant?.name ?? 'esta semana'} está guardado y puedes modificarlo mientras siga abierto.`}
+        {demo
+          ? 'Así se vería tu confirmación. Este pedido es de ejemplo y no se ha enviado a ningún restaurante.'
+          : order.cycleStatus === 'closed'
+            ? `El pedido de ${restaurant?.name ?? 'esta semana'} ya está cerrado. Esta es tu confirmación.`
+            : `Tu pedido para ${restaurant?.name ?? 'esta semana'} está guardado y puedes modificarlo mientras siga abierto.`}
       </p>
       <section className="food-receipt" aria-label="Resumen del pedido">
         <div className="food-receipt__heading">
-          <p className="food-kicker">MenuBox · La mesa del equipo</p>
+          <p className="food-kicker">
+            MenuBox · {demo ? 'Ticket de ejemplo' : 'La mesa del equipo'}
+          </p>
           <h2>{restaurant?.name ?? 'Tu pedido'}</h2>
           <span className="food-receipt__stamp">
-            {order.cycleStatus === 'closed' ? 'Pedido cerrado' : 'Pedido recibido'}
+            {demo
+              ? 'Solo una prueba'
+              : order.cycleStatus === 'closed'
+                ? 'Pedido cerrado'
+                : 'Pedido recibido'}
           </span>
         </div>
         <div className="food-receipt__meta">
@@ -424,7 +221,7 @@ function OrderConfirmation({
           </button>
         )}
         <button className="food-button food-button--quiet" type="button" onClick={onForget}>
-          Olvidar en este dispositivo
+          {demo ? 'Empezar de nuevo' : 'Olvidar en este dispositivo'}
         </button>
       </div>
       {warning && (
@@ -432,16 +229,38 @@ function OrderConfirmation({
           {warning}
         </div>
       )}
-      <p className="food-help">
-        Si olvidas el pedido, seguirá enviado pero no podrás recuperarlo ni editarlo desde este
-        dispositivo.
-      </p>
+      {!demo && (
+        <p className="food-help">
+          Si olvidas el pedido, seguirá enviado pero no podrás recuperarlo ni editarlo desde este
+          dispositivo.
+        </p>
+      )}
     </main>
   );
 }
 
-function FoodApp({ initialData }: { initialData: OrderRouteData }) {
+function DemoNotice() {
+  return (
+    <aside className="food-demo-notice" aria-label="Pedido de demostración">
+      <span>
+        <strong>Estás probando MenuBox</strong> · Carta y precios de ejemplo. Nada se envía.
+      </span>
+      <Link to="/">
+        Salir de la demo <span aria-hidden="true">↗</span>
+      </Link>
+    </aside>
+  );
+}
+
+export function FoodApp({
+  initialData,
+  demo = false,
+}: {
+  initialData: OrderRouteData;
+  demo?: boolean;
+}) {
   const [resumedDraft] = useState(() =>
+    !demo &&
     orderDraft?.cycleId === initialData.menu?.cycle.id &&
     initialData.order?.cycleStatus !== 'closed'
       ? orderDraft
@@ -493,12 +312,20 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
   const orderNoteRef = useRef<HTMLTextAreaElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [invalidField, setInvalidField] = useState('');
+  const [cartFeedback, setCartFeedback] = useState('');
+
+  useEffect(() => {
+    if (!cartFeedback) return;
+    const timeout = window.setTimeout(() => setCartFeedback(''), 2600);
+    return () => window.clearTimeout(timeout);
+  }, [cartFeedback]);
 
   useEffect(() => {
     if (blocker.state === 'blocked') blocker.reset();
   }, [blocker]);
 
   useEffect(() => {
+    if (demo) return;
     if (!active || !editing) {
       storeDraft(null);
       return;
@@ -520,7 +347,7 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
       cart,
       dirty: dirty || pending,
     });
-  }, [active, credential, editing, savedOrder, displayName, orderNote, cart, pending]);
+  }, [active, credential, editing, savedOrder, displayName, orderNote, cart, pending, demo]);
 
   function openItemDetails(item: MenuItem, event: MouseEvent<HTMLElement>) {
     detailOpenerRef.current = event.currentTarget;
@@ -563,6 +390,13 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
   }, [menuItems, category, query]);
 
   function setQuantity(itemId: string, nextQuantity: number) {
+    const item = active?.menuItems.find((item) => item.id === itemId);
+    if (item)
+      setCartFeedback(
+        nextQuantity > 0
+          ? `${item.name}: ${Math.min(nextQuantity, MAX_QUANTITY)} en tu pedido`
+          : `${item.name} eliminado del pedido`,
+      );
     setCart((current) => {
       const next = { ...current };
       if (nextQuantity <= 0) delete next[itemId];
@@ -607,6 +441,41 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
     setInvalidField('');
     try {
       const items = cartToPayload(cart);
+      if (demo) {
+        const now = new Date().toISOString();
+        const orderItems = items.map((entry) => {
+          const item = active.menuItems.find((item) => item.id === entry.menu_item_id)!;
+          return {
+            id: item.id,
+            menuItemId: item.id,
+            name: item.name,
+            unitPriceCents: item.priceCents,
+            quantity: entry.quantity,
+            note: entry.note ?? '',
+            lineTotalCents: item.priceCents * entry.quantity,
+          };
+        });
+        const order: FoodOrder = {
+          id: 'demo-order',
+          cycleId: active.cycle.id,
+          cycleStatus: 'open',
+          displayName: displayName.trim(),
+          note: orderNote.trim(),
+          createdAt: savedOrder?.createdAt ?? now,
+          updatedAt: now,
+          totalCents: orderItems.reduce((sum, item) => sum + item.lineTotalCents, 0),
+          restaurant: active.restaurant,
+          items: orderItems,
+        };
+        dispatch({
+          type: 'saved',
+          order,
+          credential: { cycleId: active.cycle.id, orderId: order.id, token: 'demo-only' },
+        });
+        focusSurface();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        return;
+      }
       let nextCredential: Credential | null = credential;
       let order: FoodOrder;
       if (credential) {
@@ -692,6 +561,17 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
   }
 
   function handleForget() {
+    if (demo) {
+      setDisplayName('');
+      setOrderNote('');
+      setCart({});
+      setQuery('');
+      setCategory('Todos');
+      setCartFeedback('');
+      dispatch({ type: 'forget' });
+      focusSurface();
+      return;
+    }
     if (
       !window.confirm(
         'El pedido seguirá enviado, pero perderás el acceso para editarlo. ¿Quieres olvidarlo en este dispositivo?',
@@ -715,6 +595,7 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
       <div className="food-shell">
         <FoodHeader />
         <OrderConfirmation
+          demo={demo}
           order={savedOrder}
           restaurant={active?.restaurant ?? savedOrder.restaurant}
           editable={savedOrder.cycleStatus === 'open' && active?.cycle.id === savedOrder.cycleId}
@@ -749,16 +630,27 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
     <div className={`food-shell${count ? ' food-shell--with-cart-bar' : ''}`}>
       <FoodHeader />
       <main id="main-content" tabIndex={-1}>
+        {demo && <DemoNotice />}
         <section
           className={`food-hero${active.restaurant.imageUrl ? ' food-hero--photo' : ''}`}
           aria-labelledby="food-restaurant-title"
         >
           <div className="food-hero__content">
-            <p className="food-kicker">Esta semana · Pedido abierto</p>
+            <p className="food-kicker">
+              {demo ? 'Tu primera mesa · Demostración' : 'Esta semana · Pedido abierto'}
+            </p>
             <h1 id="food-restaurant-title">{active.restaurant.name}</h1>
-            <p>La mesa del equipo empieza aquí. Elige algo rico, nosotros lo apuntamos.</p>
-            <span>Pedido abierto desde {formatSpanishDate(active.cycle.openedAt)}</span>
-            <OpeningHours openingHours={active.restaurant.openingHours} />
+            <p>
+              {demo
+                ? 'Elige, combina y prueba. Prepara tu pedido de ejemplo y descubre cómo queda el ticket del equipo.'
+                : 'La mesa del equipo empieza aquí. Elige algo rico, nosotros lo apuntamos.'}
+            </p>
+            {!demo && (
+              <>
+                <span>Pedido abierto desde {formatSpanishDate(active.cycle.openedAt)}</span>
+                <OpeningHours openingHours={active.restaurant.openingHours} />
+              </>
+            )}
             <div className="food-hero__actions">
               {active.menuItems.length > 0 && (
                 <a
@@ -1007,7 +899,13 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
                   type="submit"
                   disabled={pending || !count}
                 >
-                  {pending ? 'Guardando…' : credential ? 'Guardar cambios' : 'Enviar pedido'}
+                  {pending
+                    ? 'Guardando…'
+                    : demo
+                      ? 'Confirmar pedido de ejemplo'
+                      : credential
+                        ? 'Guardar cambios'
+                        : 'Enviar pedido'}
                 </button>
                 {pending && (
                   <p className="food-help" role="status">
@@ -1021,13 +919,17 @@ function FoodApp({ initialData }: { initialData: OrderRouteData }) {
                 </div>
               )}
               <p className="food-help">
-                Tu selección se conserva al explorar esta pestaña. Envíala para que llegue al
-                equipo; podrás editarla mientras el pedido siga abierto.
+                {demo
+                  ? 'Esta prueba vive solo en esta pantalla. Puedes confirmar y editar sin enviar nada.'
+                  : 'Tu selección se conserva al explorar esta pestaña. Envíala para que llegue al equipo; podrás editarla mientras el pedido siga abierto.'}
               </p>
             </aside>
           </fieldset>
         )}
       </main>
+      <p className="food-cart-feedback" role="status" aria-live="polite" aria-atomic="true">
+        {cartFeedback}
+      </p>
       {count > 0 && (
         <a
           className="food-cart-bar"

@@ -16,6 +16,11 @@ export const routes: RouteObject[] = [
             lazy: () => import('../products/food/routes/OrderRoute'),
           },
           {
+            path: 'demo',
+            handle: { page: 'demo' },
+            lazy: () => import('../products/food/routes/DemoRoute'),
+          },
+          {
             path: 'options',
             handle: { page: 'options' },
             lazy: () => import('../products/food/routes/OptionsRoute'),

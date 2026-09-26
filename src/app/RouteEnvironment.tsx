@@ -14,7 +14,12 @@ const META = {
   options: {
     title: 'Restaurantes — MenuBox',
     description:
-      'Consulta los restaurantes disponibles, descubre su propuesta y abre su carta en Uber Eats.',
+      'Explora las cartas de los restaurantes, busca platos y consulta precios y horarios en MenuBox.',
+  },
+  demo: {
+    title: 'Prueba un pedido — MenuBox',
+    description:
+      'Prueba MenuBox: elige platos, revisa el total y crea un ticket de ejemplo sin enviar un pedido real.',
   },
   admin: {
     title: 'Administración — MenuBox',
