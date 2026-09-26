@@ -22,11 +22,11 @@ afterEach(cleanup);
 
 describe('route surfaces', () => {
   it.each([
-    { path: '/', page: 'food', title: 'MenuBox — El pedido de la semana', indexed: true },
-    { path: '/options', page: 'options', title: 'Restaurantes — MenuBox', indexed: true },
-    { path: '/admin', page: 'admin', title: 'Administración — MenuBox', indexed: false },
-    { path: '/roulette', page: 'roulette', title: 'Ruleta — MenuBox', indexed: false },
-    { path: '/demo', page: 'demo', title: 'Prueba un pedido — MenuBox', indexed: false },
+    { path: '/', page: 'food', title: 'MenuBox', indexed: true },
+    { path: '/options', page: 'options', title: 'MenuBox', indexed: true },
+    { path: '/admin', page: 'admin', title: 'MenuBox', indexed: false },
+    { path: '/roulette', page: 'roulette', title: 'MenuBox', indexed: false },
+    { path: '/demo', page: 'demo', title: 'MenuBox', indexed: false },
   ])(
     'shows accessible initial loading with matching metadata at $path',
     async ({ path, page, title, indexed }) => {

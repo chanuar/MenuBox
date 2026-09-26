@@ -7,26 +7,26 @@ const SITE_URL = 'https://menubox.chanuar.com';
 
 const META = {
   food: {
-    title: 'MenuBox — El pedido de la semana',
+    title: 'MenuBox',
     description:
       'Elige restaurante, comparte la carta y reúne el pedido semanal del equipo en un solo lugar.',
   },
   options: {
-    title: 'Restaurantes — MenuBox',
+    title: 'MenuBox',
     description:
       'Explora las cartas de los restaurantes, busca platos y consulta precios y horarios en MenuBox.',
   },
   demo: {
-    title: 'Prueba un pedido — MenuBox',
+    title: 'MenuBox',
     description:
       'Prueba MenuBox: elige platos, revisa el total y crea un ticket de ejemplo sin enviar un pedido real.',
   },
   admin: {
-    title: 'Administración — MenuBox',
+    title: 'MenuBox',
     description: 'Administración segura del pedido semanal del equipo.',
   },
   roulette: {
-    title: 'Ruleta — MenuBox',
+    title: 'MenuBox',
     description: 'Gira la ruleta y elige al azar entre los restaurantes de MenuBox.',
   },
   notFound: {
