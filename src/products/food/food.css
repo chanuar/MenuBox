@@ -1143,6 +1143,46 @@ body.food-page :focus-visible {
   border-radius: 18px;
   text-align: center;
 }
+.food-how-it-works {
+  width: 100%;
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 1px solid var(--food-line);
+  text-align: left;
+}
+.food-how-it-works h2 {
+  margin: 0 0 24px;
+  font-family: Georgia, serif;
+  font-size: clamp(1.65rem, 4vw, 2.2rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+.food-how-it-works ol {
+  display: grid;
+  gap: 24px;
+  margin: 0;
+  padding-left: 24px;
+}
+.food-how-it-works li {
+  padding-left: 8px;
+}
+.food-how-it-works li::marker {
+  color: var(--food-herb);
+  font-weight: 800;
+}
+.food-how-it-works h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+.food-how-it-works li p {
+  margin: 0;
+  color: var(--food-muted);
+}
+.food-how-it-works__credit {
+  margin: 32px 0 0;
+  font-size: 0.875rem;
+  color: var(--food-muted);
+}
 .food-state--inline h2 {
   margin: 0 0 8px;
   font-family: Georgia, serif;

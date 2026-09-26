@@ -59,6 +59,12 @@ describe('food route integration without configured Supabase', () => {
       '/roulette',
     );
     expect(screen.queryByText(/Supabase/)).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Del menú al pedido, en tres pasos' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Revisa y envía' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Carlos Chanuar' })).toHaveAttribute(
+      'href',
+      'https://chanuar.com',
+    );
   });
 
   it('shows the admin sign-in surface without catalog editing controls', async () => {

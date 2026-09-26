@@ -100,6 +100,38 @@ function EmptyWeek() {
           Dejarlo a la suerte
         </Link>
       </div>
+      <section className="food-how-it-works" aria-labelledby="order-guide-title">
+        <p className="food-kicker">Así funciona MenuBox</p>
+        <h2 id="order-guide-title">Del menú al pedido, en tres pasos</h2>
+        <ol>
+          <li>
+            <h3>Elige tus platos</h3>
+            <p>
+              Cuando se abre el pedido del equipo, explora la carta del restaurante y añade las
+              cantidades que quieras.
+            </p>
+          </li>
+          <li>
+            <h3>Revisa y envía</h3>
+            <p>
+              Comprueba los platos y el total, escribe tu nombre y añade cualquier nota antes de
+              enviar tu selección.
+            </p>
+          </li>
+          <li>
+            <h3>Vuelve cuando lo necesites</h3>
+            <p>
+              Tu confirmación queda accesible desde este navegador. Puedes modificar el pedido
+              mientras siga abierto.
+            </p>
+          </li>
+        </ol>
+        <p className="food-how-it-works__credit">
+          Un proyecto de <a href="https://chanuar.com">Carlos Chanuar</a>
+          {' · '}
+          <a href="https://github.com/chanuar/MenuBox">Ver código</a>
+        </p>
+      </section>
     </main>
   );
 }
